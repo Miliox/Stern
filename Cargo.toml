@@ -1,0 +1,9 @@
+[package]
+name = "stern"
+description = "Atari 2600 Emulator Written In Rust"
+version = "0.0.1"
+authors = ["Emiliano Firmino <emiliano.firmino@gmail.com>", "Roger Zanoni <rogerzanoni@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
