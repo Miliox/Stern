@@ -1,3 +1,6 @@
+mod registers;
+
 fn main() {
-    println!("Hello, world!");
+    let r = registers::Registers::new();
+    println!("{:?}", r);
 }
