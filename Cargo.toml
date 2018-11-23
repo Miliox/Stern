@@ -5,5 +5,6 @@ version = "0.0.1"
 authors = ["Emiliano Firmino <emiliano.firmino@gmail.com>", "Roger Zanoni <rogerzanoni@gmail.com>"]
 edition = "2018"
 publish = false
+readme = "README.md"
 
 [dependencies]
