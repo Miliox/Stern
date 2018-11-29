@@ -1,6 +1,6 @@
-mod registers;
+mod cpu;
 
 fn main() {
-    let r = registers::Registers::new();
+    let r = cpu::Registers::new();
     println!("{:?}", r);
 }
