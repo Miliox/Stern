@@ -1,3 +1,4 @@
+use std::fmt;
 
 /// StatusFlags contain the flags that are stored in the Status Register (sr).
 #[allow(dead_code)]
@@ -61,11 +62,17 @@ impl Registers {
 
 /// Cpu
 #[allow(dead_code)]
-#[derive(Debug)]
 pub struct Cpu {
     r : Registers,
     clock : u64,
     room: Vec<u8>
+}
+
+impl fmt::Debug for Cpu {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "a:{:02x} x:{:02x} y:{:02x} sr:{:02x} sp:{:02x} pc:{:04x}",
+               self.r.ac, self.r.x, self.r.y, self.r.sr, self.r.sp, self.r.pc)
+    }
 }
 
 #[allow(dead_code)]
