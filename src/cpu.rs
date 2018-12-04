@@ -32,13 +32,9 @@ pub enum StatusFlags {
 
 /// Registers of 6507/6502
 #[allow(dead_code)]
-#[derive(Debug)]
 pub struct Registers {
-    /// Program Counter
-    pc : u16,
-
     /// Accumulator
-    ac : u8,
+    a : u8,
 
     /// Index X
     x : u8,
@@ -50,13 +46,23 @@ pub struct Registers {
     sr : u8,
 
     /// Stack Pointer
-    sp : u8
+    sp : u8,
+
+    /// Program Counter
+    pc : u16
 }
 
 
 impl Registers {
     pub fn new() -> Registers {
-        Registers { pc: 0, ac: 0, x: 0, y: 0, sr: 0, sp: 0 }
+        Registers { a: 0, x: 0, y: 0, sr: 0, sp: 0, pc: 0 }
+    }
+}
+
+impl fmt::Debug for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "a:{:02x} x:{:02x} y:{:02x} sr:{:02x} sp:{:02x} pc:{:04x}",
+               self.a, self.x, self.y, self.sr, self.sp, self.pc)
     }
 }
 
@@ -70,8 +76,7 @@ pub struct Cpu {
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "a:{:02x} x:{:02x} y:{:02x} sr:{:02x} sp:{:02x} pc:{:04x}",
-               self.r.ac, self.r.x, self.r.y, self.r.sr, self.r.sp, self.r.pc)
+        write!(f, "r:({:?}) clock:{:?} room_size:{:?}", self.r, self.clock, self.room.len())
     }
 }
 
