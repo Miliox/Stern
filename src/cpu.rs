@@ -64,13 +64,18 @@ impl Registers {
 #[derive(Debug)]
 pub struct Cpu {
     r : Registers,
-    clock : u64
+    clock : u64,
+    room: Vec<u8>
 }
 
 #[allow(dead_code)]
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { r: Registers::new(), clock: 0 }
+        Cpu { r: Registers::new(), clock: 0, room: Vec::new()}
+    }
+
+    pub fn load(&mut self, room: Vec<u8>) {
+        self.room = room;
     }
 
     pub fn step(&mut self) {

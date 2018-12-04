@@ -13,8 +13,10 @@ fn main() {
         file.read_to_end(&mut room).unwrap();
 
         println!("Size: {:?} bytes", room.len());
+
+        let mut cpu = cpu::Cpu::new();
+        cpu.load(room);
+        println!("{:?}", cpu);
     }
 
-    let r = cpu::Cpu::new();
-    println!("{:?}", r);
 }
