@@ -148,6 +148,8 @@ impl Cpu {
 
     // Force Break
     fn brk(&mut self) {
+        self.r.pc += 1;
+        self.r.sr |= StatusFlags::I as u8;
     }
 
     // Branch on Overflow Clear
@@ -330,4 +332,19 @@ impl Cpu {
     fn tya(&mut self) {
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cpu_brk_instruction() {
+        let mut cpu = Cpu::new();
+        cpu.load([0x00, 0x00, 0x00].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.sr == StatusFlags::I as u8);
+        assert!(cpu.clock == 7);
+    }
 }
