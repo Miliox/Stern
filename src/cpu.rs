@@ -95,14 +95,115 @@ impl Cpu {
         self.r.pc += 1;
 
         let elapsed = match opcode {
+            // BRK impl
             0x00 => {
                 self.brk();
                 7
+            }
+
+            // ORA X,ind
+            0x01 => {
+                let offset = (self.fetch() as usize) + (self.r.x as usize);
+
+                let addr = ((self.room[offset + 1] as usize) << 8) + (self.room[offset] as usize);
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                6
+            }
+
+            // ORA zpg
+            0x05 => {
+                let addr = self.fetch() as usize;
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                3
+            }
+
+            // ORA #
+            0x09 => {
+                let value = self.fetch();
+
+                self.ora(value);
+                2
+            }
+
+            // ORA abs
+            0x0d => {
+                let low = self.fetch() as usize;
+
+                let high = self.fetch() as usize;
+
+                let addr = (high << 8) + low;
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                4
+            }
+
+            // ORA ind,Y
+            0x11 => {
+                let offset = self.fetch() as usize;
+
+                let addr = ((self.room[offset + 1] as usize) << 8) + (self.room[offset] as usize) + (self.r.y as usize);
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                5 // TODO: Increment by one if page boundary crossed
+            }
+
+            // ORA zpg,X
+            0x15 => {
+                let addr = (self.fetch() as usize) + (self.r.x as usize);
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                4
+            }
+
+            // ORA abs,Y
+            0x19 => {
+                let low = self.fetch() as usize;
+                let high = self.fetch() as usize;
+
+                let addr = (high << 8) + low + (self.r.y as usize);
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                4 // TODO: Increment by one if page boundary crossed
+            }
+
+            // ORA abs,X
+            0x1d => {
+                let low = self.fetch() as usize;
+
+                let high = self.fetch() as usize;
+
+                let addr = (high << 8) + low + (self.r.x as usize);
+
+                let value = self.room[addr];
+
+                self.ora(value);
+                4 // TODO: Increment by one if page boundary crossed
             }
             _ => panic!("opcode {:x} not implemented yet!", opcode)
         };
 
         self.clock += elapsed;
+    }
+
+    /// Fetchs the next byte indexed by pc register and increment pc by one
+    fn fetch(&mut self) -> u8 {
+        let b = self.room[self.r.pc as usize];
+        self.r.pc += 1;
+        b
     }
 
     // Add Memory to Accumulator with Carry
@@ -245,7 +346,14 @@ impl Cpu {
     }
 
     // OR Memory with Accumulator
-    fn ora(&mut self) {
+    fn ora(&mut self, value: u8) {
+        self.r.a |= value;
+        if self.r.a == 0 {
+            self.r.sr |= StatusFlags::Z as u8;
+        }
+        if (self.r.a & 0b1000_0000) != 0  {
+            self.r.sr |= StatusFlags::N as u8;
+        }
     }
 
     // Push Accumulator on Stack
@@ -339,7 +447,64 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cpu_brk_instruction() {
+    fn cpu_fetch_sequence() {
+        let mut cpu = Cpu::new();
+        cpu.load([0x00, 0x01, 0x02, 0x03, 0x4, 0x5].to_vec());
+        assert!(cpu.r.pc == 0x00);
+
+        assert!(cpu.fetch() == 0x00);
+        assert!(cpu.r.pc == 0x01);
+
+        assert!(cpu.fetch() == 0x01);
+        assert!(cpu.r.pc == 0x02);
+
+        assert!(cpu.fetch() == 0x02);
+        assert!(cpu.r.pc == 0x03);
+
+        assert!(cpu.fetch() == 0x03);
+        assert!(cpu.r.pc == 0x04);
+
+        assert!(cpu.fetch() == 0x04);
+        assert!(cpu.r.pc == 0x05);
+
+        assert!(cpu.fetch() == 0x05);
+        assert!(cpu.r.pc == 0x06);
+    }
+
+    #[test]
+    fn cpu_ora_zero() {
+        let mut cpu = Cpu::new();
+        cpu.ora(0x00);
+        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == StatusFlags::Z as u8);
+        assert!(cpu.clock == 0);
+    }
+
+    #[test]
+    fn cpu_ora_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1010_0101;
+        cpu.ora(  0b1100_0011);
+        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.a == 0b1110_0111);
+        assert!(cpu.r.sr == StatusFlags::N as u8);
+        assert!(cpu.clock == 0);
+    }
+
+    #[test]
+    fn cpu_ora_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b0010_0101;
+        cpu.ora(  0b0100_0011);
+        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.a == 0b0110_0111);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.clock == 0);
+    }
+
+    #[test]
+    fn cpu_instruction_brk() {
         let mut cpu = Cpu::new();
         cpu.load([0x00, 0x00, 0x00].to_vec());
         cpu.step();
@@ -347,4 +512,112 @@ mod tests {
         assert!(cpu.r.sr == StatusFlags::I as u8);
         assert!(cpu.clock == 7);
     }
+
+    #[test]
+    fn cpu_instruction_ora_immidiate() {
+        let mut cpu = Cpu::new();
+        cpu.load([0x09, 0x00].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == StatusFlags::Z as u8);
+        assert!(cpu.clock == 2);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_x_ind() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 1;
+        cpu.load([0x01, 0x01, 0x04, 0x00, 0b0011_1001].to_vec());
+        cpu.step();
+        // execution:
+        //   offset = 0x01(op) + 0x01(x) => 0x02
+        //   mem[offset] = 0x0004
+        //   value[mem[offset]] => 0b0011_1001
+        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.a == 0b0011_1001);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.clock == 6);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_ind_y() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1001_0110;
+        cpu.r.y = 1;
+        cpu.load([0x11, 0x02, 0x04, 0x00, 0x00, 0xff].to_vec());
+        cpu.step();
+        // execution:
+        //   offset = 0x02(op)
+        //   mem[offset] = 0x0004
+        //   value[mem[offset] + 0x01(x)] = 0xff
+        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.a == 0xff);
+        assert!(cpu.r.sr == StatusFlags::N as u8);
+        assert!(cpu.clock == 5);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_zpg() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b0110_0000;
+        cpu.load([0x05, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.a == 0b1111_0000);
+        assert!(cpu.r.sr == StatusFlags::N as u8);
+        assert!(cpu.clock == 3);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_zpg_x() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b0110_0000;
+        cpu.r.x = 1;
+        cpu.load([0x15, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.a == 0b0110_1111);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.clock == 4);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_abs() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b0110_0000;
+        cpu.load([0x0d, 0x03, 0x00, 0b0000_1111].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.a == 0b0110_1111);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.clock == 4);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_abs_x() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b0001_0000;
+        cpu.r.x = 1;
+        cpu.load([0x1d, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.a == 0b0001_1111);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.clock == 4);
+    }
+
+    #[test]
+    fn cpu_instruction_ora_abs_y() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b0001_0000;
+        cpu.r.y = 1;
+        cpu.load([0x19, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.a == 0b0001_1111);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.clock == 4);
+    }
+
 }
