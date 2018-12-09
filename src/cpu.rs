@@ -105,7 +105,7 @@ impl Cpu {
             0x01 => {
                 let offset = (self.fetch() as usize) + (self.r.x as usize);
 
-                let addr = ((self.room[offset + 1] as usize) << 8) + (self.room[offset] as usize);
+                let addr = self.read_address(offset);
 
                 let value = self.room[addr];
 
@@ -133,11 +133,7 @@ impl Cpu {
 
             // ORA abs
             0x0d => {
-                let low = self.fetch() as usize;
-
-                let high = self.fetch() as usize;
-
-                let addr = (high << 8) + low;
+                let addr = self.fetch_address();
 
                 let value = self.room[addr];
 
@@ -149,7 +145,7 @@ impl Cpu {
             0x11 => {
                 let offset = self.fetch() as usize;
 
-                let addr = ((self.room[offset + 1] as usize) << 8) + (self.room[offset] as usize) + (self.r.y as usize);
+                let addr = self.read_address(offset) + (self.r.y as usize);
 
                 let value = self.room[addr];
 
@@ -169,10 +165,7 @@ impl Cpu {
 
             // ORA abs,Y
             0x19 => {
-                let low = self.fetch() as usize;
-                let high = self.fetch() as usize;
-
-                let addr = (high << 8) + low + (self.r.y as usize);
+                let addr = self.fetch_address() + (self.r.y as usize);
 
                 let value = self.room[addr];
 
@@ -182,11 +175,7 @@ impl Cpu {
 
             // ORA abs,X
             0x1d => {
-                let low = self.fetch() as usize;
-
-                let high = self.fetch() as usize;
-
-                let addr = (high << 8) + low + (self.r.x as usize);
+                let addr = self.fetch_address() + (self.r.x as usize);
 
                 let value = self.room[addr];
 
@@ -204,6 +193,20 @@ impl Cpu {
         let b = self.room[self.r.pc as usize];
         self.r.pc += 1;
         b
+    }
+
+    // Fetchs the immediate address indexed by pc register and increment pc by two
+    fn fetch_address(&mut self) -> usize {
+        let ll = self.fetch() as usize;
+        let hh = self.fetch() as usize;
+        (hh << 8) + ll
+    }
+
+    // Read the address from memory by a given memory address
+    fn read_address(&mut self, addr: usize) -> usize {
+        let ll = self.room[addr] as usize;
+        let hh = self.room[addr + 1] as usize;
+        (hh << 8) + ll
     }
 
     // Add Memory to Accumulator with Carry
