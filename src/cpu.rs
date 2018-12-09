@@ -115,10 +115,7 @@ impl Cpu {
 
             // ORA zpg
             0x05 => {
-                let addr = self.fetch() as usize;
-
-                let value = self.room[addr];
-
+                let value = self.fetch_zpg();
                 self.ora(value);
                 3
             }
@@ -126,17 +123,13 @@ impl Cpu {
             // ORA #
             0x09 => {
                 let value = self.fetch();
-
                 self.ora(value);
                 2
             }
 
             // ORA abs
             0x0d => {
-                let addr = self.fetch_address();
-
-                let value = self.room[addr];
-
+                let value = self.fetch_abs();
                 self.ora(value);
                 4
             }
@@ -155,30 +148,21 @@ impl Cpu {
 
             // ORA zpg,X
             0x15 => {
-                let addr = (self.fetch() as usize) + (self.r.x as usize);
-
-                let value = self.room[addr];
-
+                let value = self.fetch_zpg_x();
                 self.ora(value);
                 4
             }
 
             // ORA abs,Y
             0x19 => {
-                let addr = self.fetch_address() + (self.r.y as usize);
-
-                let value = self.room[addr];
-
+                let value = self.fetch_abs_y();
                 self.ora(value);
                 4 // TODO: Increment by one if page boundary crossed
             }
 
             // ORA abs,X
             0x1d => {
-                let addr = self.fetch_address() + (self.r.x as usize);
-
-                let value = self.room[addr];
-
+                let value = self.fetch_abs_x();
                 self.ora(value);
                 4 // TODO: Increment by one if page boundary crossed
             }
@@ -200,6 +184,42 @@ impl Cpu {
         let ll = self.fetch() as usize;
         let hh = self.fetch() as usize;
         (hh << 8) + ll
+    }
+
+    // Fetchs the absolute address from the program and resolve his memory value
+    fn fetch_abs(&mut self) -> u8 {
+        let addr = self.fetch_address();
+        self.room[addr]
+    }
+
+    // Fetchs the absolute address + x from the program and resolve his memory value
+    fn fetch_abs_x(&mut self) -> u8 {
+        let addr = self.fetch_address() + self.r.x as usize;
+        self.room[addr]
+    }
+
+    // Fetchs the absolute address + y from the program and resolve his memory value
+    fn fetch_abs_y(&mut self) -> u8 {
+        let addr = self.fetch_address() + self.r.y as usize;
+        self.room[addr]
+    }
+
+    // Fetchs the zeropage address from the program and resolve his memory value
+    fn fetch_zpg(&mut self) -> u8 {
+        let addr = self.fetch() as usize;
+        self.room[addr]
+    }
+
+    // Fetchs the zeropage address + x from the program and resolve his memory value
+    fn fetch_zpg_x(&mut self) -> u8 {
+        let addr = self.fetch() as usize + self.r.x as usize;
+        self.room[addr]
+    }
+
+    // Fetchs the zeropage address + y from the program and resolve his memory value
+    fn fetch_zpg_y(&mut self) -> u8 {
+        let addr = self.fetch() as usize + self.r.y as usize;
+        self.room[addr]
     }
 
     // Read the address from memory by a given memory address
