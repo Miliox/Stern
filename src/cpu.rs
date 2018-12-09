@@ -103,12 +103,7 @@ impl Cpu {
 
             // ORA X,ind
             0x01 => {
-                let offset = (self.fetch() as usize) + (self.r.x as usize);
-
-                let addr = self.read_address(offset);
-
-                let value = self.room[addr];
-
+                let value = self.fetch_x_ind();
                 self.ora(value);
                 6
             }
@@ -136,12 +131,7 @@ impl Cpu {
 
             // ORA ind,Y
             0x11 => {
-                let offset = self.fetch() as usize;
-
-                let addr = self.read_address(offset) + (self.r.y as usize);
-
-                let value = self.room[addr];
-
+                let value = self.fetch_ind_y();
                 self.ora(value);
                 5 // TODO: Increment by one if page boundary crossed
             }
@@ -219,6 +209,20 @@ impl Cpu {
     // Fetchs the zeropage address + y from the program and resolve his memory value
     fn fetch_zpg_y(&mut self) -> u8 {
         let addr = self.fetch() as usize + self.r.y as usize;
+        self.room[addr]
+    }
+
+    // Fetchs an indirect address in zero page + x and resolve his memory value
+    fn fetch_x_ind(&mut self) -> u8 {
+        let zpg_addr = (self.fetch() as usize) + (self.r.x as usize);
+        let addr = self.read_address(zpg_addr);
+        self.room[addr]
+    }
+
+    // Fetchs an indirect address in zero page, increment by y and resolve his memory value
+    fn fetch_ind_y(&mut self) -> u8 {
+        let zpg_addr = self.fetch() as usize;
+        let addr = self.read_address(zpg_addr) + (self.r.y as usize);
         self.room[addr]
     }
 
