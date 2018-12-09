@@ -17,6 +17,9 @@ fn main() {
         let mut cpu = cpu::Cpu::new();
         cpu.load(room);
         println!("{:?}", cpu);
+
+        cpu.step();
+        println!("{:?}", cpu);
     }
 
 }

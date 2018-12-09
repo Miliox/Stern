@@ -91,7 +91,18 @@ impl Cpu {
     }
 
     pub fn step(&mut self) {
+        let opcode = self.room[self.r.pc as usize];
+        self.r.pc += 1;
 
+        let elapsed = match opcode {
+            0x00 => {
+                self.brk();
+                7
+            }
+            _ => panic!("opcode {:x} not implemented yet!", opcode)
+        };
+
+        self.clock += elapsed;
     }
 
     // Add Memory to Accumulator with Carry
