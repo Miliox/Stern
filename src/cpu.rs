@@ -2,32 +2,30 @@ use std::fmt;
 
 /// StatusFlags contain the flags that are stored in the Status Register (sr).
 #[allow(dead_code)]
-#[derive(Debug)]
-#[repr(u8)]
-pub enum StatusFlags {
+pub mod status_flags {
     /// Carry
-    C = 0b0000_0001,
+    pub const CARRY : u8 = 0b0000_0001;
 
     /// Zero
-    Z = 0b0000_0010,
+    pub const ZERO : u8 = 0b0000_0010;
 
     /// IRQ Disable
-    I = 0b0000_0100,
+    pub const IRQD : u8 = 0b0000_0100;
 
     /// Decimal
-    D = 0b0000_1000,
+    pub const DEC : u8 = 0b0000_1000;
 
-    /// BRK Command
-    B = 0b0001_0000,
+    /// BRK Interrupt
+    pub const BRK : u8 = 0b0001_0000;
 
-    // IGNORED
-    // _ = 0b0010_0000,
+    // UNUSED (Should Always Be Set)
+    pub const UNUSED : u8 = 0b0010_0000;
 
     /// Overflow
-    V = 0b0100_0000,
+    pub const OVER : u8 = 0b0100_0000;
 
     /// Negative
-    N = 0b1000_0000
+    pub const NEG : u8 = 0b1000_0000;
 }
 
 /// Registers of 6507/6502
@@ -277,7 +275,7 @@ impl Cpu {
     // Force Break
     fn brk(&mut self) {
         self.r.pc += 1;
-        self.r.sr |= StatusFlags::I as u8;
+        self.r.sr |= status_flags::BRK;
     }
 
     // Branch on Overflow Clear
@@ -376,10 +374,10 @@ impl Cpu {
     fn ora(&mut self, value: u8) {
         self.r.a |= value;
         if self.r.a == 0 {
-            self.r.sr |= StatusFlags::Z as u8;
+            self.r.sr |= status_flags::ZERO;
         }
         if (self.r.a & 0b1000_0000) != 0  {
-            self.r.sr |= StatusFlags::N as u8;
+            self.r.sr |= status_flags::NEG;
         }
     }
 
@@ -504,7 +502,7 @@ mod tests {
         cpu.ora(0x00);
         assert!(cpu.r.pc == 0);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == StatusFlags::Z as u8);
+        assert!(cpu.r.sr == status_flags::ZERO);
         assert!(cpu.clock == 0);
     }
 
@@ -515,7 +513,7 @@ mod tests {
         cpu.ora(  0b1100_0011);
         assert!(cpu.r.pc == 0);
         assert!(cpu.r.a == 0b1110_0111);
-        assert!(cpu.r.sr == StatusFlags::N as u8);
+        assert!(cpu.r.sr == status_flags::NEG);
         assert!(cpu.clock == 0);
     }
 
@@ -536,7 +534,7 @@ mod tests {
         cpu.load([0x00, 0x00, 0x00].to_vec());
         cpu.step();
         assert!(cpu.r.pc == 0x02);
-        assert!(cpu.r.sr == StatusFlags::I as u8);
+        assert!(cpu.r.sr == status_flags::BRK);
         assert!(cpu.clock == 7);
     }
 
@@ -547,7 +545,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == StatusFlags::Z as u8);
+        assert!(cpu.r.sr == status_flags::ZERO);
         assert!(cpu.clock == 2);
     }
 
@@ -580,7 +578,7 @@ mod tests {
         //   value[mem[offset] + 0x01(x)] = 0xff
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0xff);
-        assert!(cpu.r.sr == StatusFlags::N as u8);
+        assert!(cpu.r.sr == status_flags::NEG);
         assert!(cpu.clock == 5);
     }
 
@@ -592,7 +590,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0b1111_0000);
-        assert!(cpu.r.sr == StatusFlags::N as u8);
+        assert!(cpu.r.sr == status_flags::NEG);
         assert!(cpu.clock == 3);
     }
 
