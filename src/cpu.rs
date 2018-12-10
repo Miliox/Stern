@@ -6,28 +6,28 @@ use std::fmt;
 #[repr(u8)]
 pub enum StatusFlags {
     /// Carry
-    C = 0b1000_0000,
+    C = 0b0000_0001,
 
     /// Zero
-    Z = 0b0100_0000,
+    Z = 0b0000_0010,
 
     /// IRQ Disable
-    I = 0b0010_0000,
+    I = 0b0000_0100,
 
     /// Decimal
-    D = 0b0001_0000,
+    D = 0b0000_1000,
 
-    /// Index Size
-    X = 0b0000_1000,
+    /// BRK Command
+    B = 0b0001_0000,
 
     // IGNORED
-    // _ = 0b0000_0100,
+    // _ = 0b0010_0000,
 
     /// Overflow
-    V = 0b0000_0010,
+    V = 0b0100_0000,
 
     /// Negative
-    N = 0b0000_0001
+    N = 0b1000_0000
 }
 
 /// Registers of 6507/6502
