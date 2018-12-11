@@ -113,10 +113,24 @@ impl Cpu {
                 3
             }
 
+            // ASL zpg
+            0x06 => {
+                let value = self.fetch_zpg();
+                self.asl(value);
+                5
+            }
+
             // ORA #
             0x09 => {
                 let value = self.fetch();
                 self.ora(value);
+                2
+            }
+
+            // ASL A
+            0x0a => {
+                let value = self.r.a;
+                self.asl(value);
                 2
             }
 
@@ -125,6 +139,13 @@ impl Cpu {
                 let value = self.fetch_abs();
                 self.ora(value);
                 4
+            }
+
+            // ASL abs
+            0x0e => {
+                let value = self.fetch_abs();
+                self.asl(value);
+                6
             }
 
             // ORA ind,Y
@@ -141,6 +162,13 @@ impl Cpu {
                 4
             }
 
+            // ASL zpg,X
+            0x16 => {
+                let value = self.fetch_zpg_x();
+                self.asl(value);
+                6
+            }
+
             // ORA abs,Y
             0x19 => {
                 let value = self.fetch_abs_y();
@@ -153,6 +181,14 @@ impl Cpu {
                 let value = self.fetch_abs_x();
                 self.ora(value);
                 4 // TODO: Increment by one if page boundary crossed
+            }
+
+
+            // ASL abs,X
+            0x1e => {
+                let value = self.fetch_abs_x();
+                self.asl(value);
+                7
             }
             _ => panic!("opcode {:x} not implemented yet!", opcode)
         };
