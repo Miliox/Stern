@@ -261,6 +261,41 @@ impl Cpu {
                 7
             }
 
+            // ROR zpg
+            0x66 => {
+                let value = self.fetch_zpg();
+                self.ror(value);
+                5
+            }
+
+            // ROR A
+            0x6a => {
+                let value = self.r.a;
+                self.ror(value);
+                2
+            }
+
+            // ROR abs
+            0x6e => {
+                let value = self.abs();
+                self.ror(value);
+                6
+            }
+
+            // ROR zpg,X
+            0x76 => {
+                let value = self.fetch_zpg_x();
+                self.ror(value);
+                6
+            }
+
+            // ROR abs,X
+            0x7e => {
+                let value = self.fetch_abs_x();
+                self.ror(value);
+                7
+            }
+
             _ => panic!("opcode {:x} not implemented yet!", opcode)
         };
 
