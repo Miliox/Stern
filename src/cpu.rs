@@ -190,6 +190,42 @@ impl Cpu {
                 self.asl(value);
                 7
             }
+
+            // LSR zpg
+            0x46 => {
+                let value = self.fetch_zpg();
+                self.lsr(value);
+                5
+            }
+
+            // LSR A
+            0x4a => {
+                let value = self.r.a;
+                self.lsr(value);
+                2
+            }
+
+            // LSR abs
+            0x4e => {
+                let value = self.fetch_abs();
+                self.lsr(value);
+                6
+            }
+
+            // LSR zpg,X
+            0x56 => {
+                let value = self.fetch_zpg_x();
+                self.lsr(value);
+                6
+            }
+
+            // LSR abs,X
+            0x5e => {
+                let value = self.fetch_abs_x();
+                self.lsr(value);
+                7
+            }
+
             _ => panic!("opcode {:x} not implemented yet!", opcode)
         };
 
