@@ -231,6 +231,25 @@ impl Cpu {
         (hh << 8) + ll
     }
 
+    // Set status flag
+    fn flag_set(&mut self, flag: u8) {
+        self.r.sr |= flag;
+    }
+
+    // Conditional set status flag
+    fn flag_set_if(&mut self, flag: u8, cond: bool) {
+        if cond {
+            self.r.sr |= flag;
+        } else {
+            self.r.sr &= !flag;
+        }
+    }
+
+    // Reset status flag
+    fn flag_reset(&mut self, flag: u8) {
+        self.r.sr &= !flag;
+    }
+
     // Add Memory to Accumulator with Carry
     fn adc(&mut self) {
     }
@@ -240,7 +259,12 @@ impl Cpu {
     }
 
     // Shift Left One Bit (Memory or Accumulator)
-    fn asl(&mut self) {
+    fn asl(&mut self, value : u8) {
+        self.r.a = value << 1;
+
+        self.flag_set_if(status_flags::CARRY, value & 0x80 != 0);
+        self.flag_set_if(status_flags::NEG,  self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Branch on Carry Clear
@@ -363,7 +387,12 @@ impl Cpu {
     }
 
     // Shift One Bit Right (Memory or Accumulator)
-    fn lsr(&mut self) {
+    fn lsr(&mut self, value : u8) {
+        self.r.a = value >> 1;
+
+        self.flag_set_if(status_flags::CARRY, value & 0x01 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
+        self.flag_reset(status_flags::NEG);
     }
 
     // No Operation
@@ -398,11 +427,27 @@ impl Cpu {
     }
 
     // Rotate One Bit Left (Memory or Accumulator)
-    fn rol(&mut self) {
+    fn rol(&mut self, value: u8) {
+        self.r.a = value << 1;
+        if self.r.sr & status_flags::CARRY != 0 {
+            self.r.a |= 0x01;
+        }
+
+        self.flag_set_if(status_flags::CARRY, value & 0x80 != 0);
+        self.flag_set_if(status_flags::NEG,  self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Rotate One Bit Right (Memory or Accumulator)
-    fn ror(&mut self) {
+    fn ror(&mut self, value: u8) {
+        self.r.a = value >> 1;
+        if self.r.sr & status_flags::CARRY != 0 {
+            self.r.a |= 0x80;
+        }
+
+        self.flag_set_if(status_flags::CARRY, value & 0x01 != 0);
+        self.flag_set_if(status_flags::NEG,  self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Return from Interrupt
@@ -515,6 +560,133 @@ mod tests {
         assert!(cpu.r.a == 0b1110_0111);
         assert!(cpu.r.sr == status_flags::NEG);
         assert!(cpu.clock == 0);
+    }
+
+    #[test]
+    fn cpu_asl_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.asl(0b0001_1000);
+        assert!(cpu.r.a == 0b0011_0000);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_asl_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY;
+        cpu.asl(0b0101_0101);
+        assert!(cpu.r.a == 0b1010_1010);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_asl_zero_carry() {
+        let mut cpu = Cpu::new();
+        cpu.asl(0b1000_0000);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_lsr_carry() {
+        let mut cpu = Cpu::new();
+        cpu.lsr(0b1001_1001);
+        assert!(cpu.r.a == 0b0100_1100);
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_lsr_zero() {
+        let mut cpu = Cpu::new();
+        cpu.lsr(0b0000_0000);
+        assert!(cpu.r.a == 0b0000_0000);
+        assert!(cpu.r.sr == status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_lsr_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.lsr(0b1001_1000);
+        assert!(cpu.r.a == 0b0100_1100);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_rol_set_carry() {
+        let mut cpu = Cpu::new();
+        cpu.rol(0b1000_0001);
+        assert!(cpu.r.a == 0b0000_0010);
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_rol_reset_carry() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY;
+        cpu.rol(0b0000_0001);
+        assert!(cpu.r.a == 0b0000_0011);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_rol_neg() {
+        let mut cpu = Cpu::new();
+        cpu.rol(0b0100_0000);
+        assert!(cpu.r.a == 0b1000_0000);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_rol_keep_carry() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY;
+        cpu.rol(0b1000_0000);
+        print!("{:?}", cpu);
+        assert!(cpu.r.a == 0b0000_0001);
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_rol_zero() {
+        let mut cpu = Cpu::new();
+        cpu.rol(0b0000_0000);
+        assert!(cpu.r.a == 0b0000_0000);
+        assert!(cpu.r.sr == status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_ror_set_carry() {
+        let mut cpu = Cpu::new();
+        cpu.ror(0b1000_0001);
+        assert!(cpu.r.a == 0b0100_0000);
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_ror_reset_carry() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY;
+        cpu.ror(0b0000_0000);
+        assert!(cpu.r.a == 0b1000_0000);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_ror_keep_carry() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY;
+        cpu.ror(0b1000_0000);
+        print!("{:?}", cpu);
+        assert!(cpu.r.a == 0b1100_0000);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_ror_zero() {
+        let mut cpu = Cpu::new();
+        cpu.ror(0b0000_0000);
+        assert!(cpu.r.a == 0b0000_0000);
+        assert!(cpu.r.sr == status_flags::ZERO);
     }
 
     #[test]
