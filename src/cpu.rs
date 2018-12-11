@@ -191,6 +191,41 @@ impl Cpu {
                 7
             }
 
+            // ROL zpg
+            0x26 => {
+                let value = self.fetch_zpg();
+                self.rol(value);
+                5
+            }
+
+            // ROL A
+            0x2a => {
+                let value = self.r.a;
+                self.rol(value);
+                2
+            }
+
+            // ROL abs
+            0x2e => {
+                let value = self.abs();
+                self.rol(value);
+                6
+            }
+
+            // ROL zpg,X
+            0x36 => {
+                let value = self.fetch_zpg_x();
+                self.rol(value);
+                6
+            }
+
+            // ROL abs,X
+            0x3e => {
+                let value = self.fetch_abs_x();
+                self.rol(value);
+                7
+            }
+
             // LSR zpg
             0x46 => {
                 let value = self.fetch_zpg();
