@@ -191,11 +191,32 @@ impl Cpu {
                 7
             }
 
+            // AND X,ind
+            0x21 => {
+                let value = self.fetch_x_ind();
+                self.and(value);
+                6
+            }
+
+            // AND zpg
+            0x25 => {
+                let value = self.fetch_zpg();
+                self.and(value);
+                3
+            }
+
             // ROL zpg
             0x26 => {
                 let value = self.fetch_zpg();
                 self.rol(value);
                 5
+            }
+
+            // AND #
+            0x29 => {
+                let value = self.fetch();
+                self.and(value);
+                2
             }
 
             // ROL A
@@ -205,11 +226,32 @@ impl Cpu {
                 2
             }
 
+            // AND abs
+            0x2d => {
+                let value = self.fetch_abs();
+                self.and(value);
+                4
+            }
+
             // ROL abs
             0x2e => {
-                let value = self.abs();
+                let value = self.fetch_abs();
                 self.rol(value);
                 6
+            }
+
+            // AND ind,Y
+            0x31 => {
+                let value = self.fetch_ind_y();
+                self.and(value);
+                5
+            }
+
+            // AND zpg,X
+            0x35 => {
+                let value = self.fetch_zpg_x();
+                self.and(value);
+                4
             }
 
             // ROL zpg,X
@@ -217,6 +259,20 @@ impl Cpu {
                 let value = self.fetch_zpg_x();
                 self.rol(value);
                 6
+            }
+
+            // AND abs,Y
+            0x39 => {
+                let value = self.fetch_abs_y();
+                self.and(value);
+                4
+            }
+
+            // AND abs,X
+            0x3d => {
+                let value = self.fetch_abs_x();
+                self.and(value);
+                4
             }
 
             // ROL abs,X
@@ -277,7 +333,7 @@ impl Cpu {
 
             // ROR abs
             0x6e => {
-                let value = self.abs();
+                let value = self.fetch_abs();
                 self.ror(value);
                 6
             }
@@ -397,7 +453,10 @@ impl Cpu {
     }
 
     // AND Memory with Accumulator
-    fn and(&mut self) {
+    fn and(&mut self, value : u8) {
+        self.r.a &= value;
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Shift Left One Bit (Memory or Accumulator)
@@ -840,6 +899,33 @@ mod tests {
         assert!(cpu.r.a == 0b0110_0111);
         assert!(cpu.r.sr == 0);
         assert!(cpu.clock == 0);
+    }
+
+    #[test]
+    fn cpu_and_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1010_0101;
+        cpu.and(0b0010_0100);
+        assert!(cpu.r.a == 0b0010_0100);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_and_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1010_0101;
+        cpu.and(0b1010_0100);
+        assert!(cpu.r.a == 0b1010_0100);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_and_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1111_1111;
+        cpu.and(0b0000_0000);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
     }
 
     #[test]
