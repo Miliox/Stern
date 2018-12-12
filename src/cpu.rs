@@ -169,6 +169,12 @@ impl Cpu {
                 6
             }
 
+            // CLC
+            0x18 => {
+                self.clc();
+                2
+            }
+
             // ORA abs,Y
             0x19 => {
                 let value = self.fetch_abs_y();
@@ -366,6 +372,12 @@ impl Cpu {
                 6
             }
 
+            // CLI
+            0x58 => {
+                self.cli();
+                2
+            }
+
             // EOR abs,Y
             0x59 => {
                 let value = self.fetch_abs_y();
@@ -420,6 +432,12 @@ impl Cpu {
                 let value = self.fetch_abs_x();
                 self.ror(value);
                 7
+            }
+
+            // CLV
+            0xb8 => {
+                self.clv();
+                2
             }
 
             // CPY #
@@ -483,6 +501,12 @@ impl Cpu {
                 let value = self.fetch_zpg_x();
                 self.cmp(value);
                 4
+            }
+
+            // CLD
+            0xd8 => {
+                self.cld();
+                2
             }
 
             // CMP abs,Y
@@ -683,18 +707,22 @@ impl Cpu {
 
     // Clear Carry Flag
     fn clc(&mut self) {
+        self.flag_reset(status_flags::CARRY);
     }
 
     // Clear Decimal Mode
     fn cld(&mut self) {
+        self.flag_reset(status_flags::DEC);
     }
 
     // Clear Interrupt Disable Bit
     fn cli(&mut self) {
+        self.flag_reset(status_flags::IRQD);
     }
 
     // Clear Overflow Flag
     fn clv(&mut self) {
+        self.flag_reset(status_flags::OVER);
     }
 
     // Compare Memory with Accumulator
@@ -1230,6 +1258,38 @@ mod tests {
         cpu.bit(0b1100_0000);
         assert!(cpu.r.a == 0);
         assert!(cpu.r.sr == (status_flags::NEG | status_flags::OVER));
+    }
+
+    #[test]
+    fn cpu_clc() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY | status_flags::UNUSED;
+        cpu.clc();
+        assert!(cpu.r.sr == status_flags::UNUSED);
+    }
+
+    #[test]
+    fn cpu_cld() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::DEC | status_flags::UNUSED;
+        cpu.cld();
+        assert!(cpu.r.sr == status_flags::UNUSED);
+    }
+
+    #[test]
+    fn cpu_cli() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::IRQD | status_flags::UNUSED;
+        cpu.cli();
+        assert!(cpu.r.sr == status_flags::UNUSED);
+    }
+
+    #[test]
+    fn cpu_clv() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::OVER | status_flags::UNUSED;
+        cpu.clv();
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
