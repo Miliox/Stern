@@ -537,6 +537,12 @@ impl Cpu {
                 3
             }
 
+            // NOP
+            0xea => {
+                self.nop();
+                2
+            }
+
             // CPX abs
             0xec => {
                 let value = self.fetch_abs();
