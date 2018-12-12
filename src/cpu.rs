@@ -408,6 +408,104 @@ impl Cpu {
                 7
             }
 
+            // CPY #
+            0xc0 => {
+                let value = self.fetch();
+                self.cpy(value);
+                2
+            }
+
+            // CMP X,ind
+            0xc1 => {
+                let value = self.fetch_x_ind();
+                self.cmp(value);
+                6
+            }
+
+            // CPY zpg
+            0xc4 => {
+                let value = self.fetch_zpg();
+                self.cpy(value);
+                3
+            }
+
+            // CMP zpg
+            0xc5 => {
+                let value = self.fetch_zpg();
+                self.cmp(value);
+                3
+            }
+
+            // CMP #
+            0xc9 => {
+                let value = self.fetch();
+                self.cmp(value);
+                2
+            }
+
+            // CPY abs
+            0xcc => {
+                let value = self.fetch_abs();
+                self.cpy(value);
+                4
+            }
+
+            // CMP abs
+            0xcd => {
+                let value = self.fetch_abs();
+                self.cmp(value);
+                4
+            }
+
+            // CMP ind,Y
+            0xd1 => {
+                let value = self.fetch_ind_y();
+                self.cmp(value);
+                5
+            }
+
+            // CMP zpg,X
+            0xd5 => {
+                let value = self.fetch_zpg_x();
+                self.cmp(value);
+                4
+            }
+
+            // CMP abs,Y
+            0xd9 => {
+                let value = self.fetch_abs_y();
+                self.cmp(value);
+                4
+            }
+
+            // CMP abs,X
+            0xdd => {
+                let value = self.fetch_abs_x();
+                self.cmp(value);
+                4
+            }
+
+            // CPX #
+            0xe0 => {
+                let value = self.fetch();
+                self.cpx(value);
+                2
+            }
+
+            // CPX zpg
+            0xe4 => {
+                let value = self.fetch_zpg();
+                self.cpx(value);
+                3
+            }
+
+            // CPX abs
+            0xec => {
+                let value = self.fetch_abs();
+                self.cpx(value);
+                4
+            }
+
             _ => panic!("opcode {:x} not implemented yet!", opcode)
         };
 
@@ -584,15 +682,24 @@ impl Cpu {
     }
 
     // Compare Memory with Accumulator
-    fn cmp(&mut self) {
+    fn cmp(&mut self, value: u8) {
+        self.flag_set_if(status_flags::NEG, self.r.a < value);
+        self.flag_set_if(status_flags::ZERO, self.r.a == value);
+        self.flag_set_if(status_flags::CARRY, self.r.a >= value);
     }
 
     // Compare Memory and Index X
-    fn cpx(&mut self) {
+    fn cpx(&mut self, value: u8) {
+        self.flag_set_if(status_flags::NEG, self.r.x < value);
+        self.flag_set_if(status_flags::ZERO, self.r.x == value);
+        self.flag_set_if(status_flags::CARRY, self.r.x >= value);
     }
 
     // Compare Memory and Index Y
-    fn cpy(&mut self) {
+    fn cpy(&mut self, value: u8) {
+        self.flag_set_if(status_flags::NEG, self.r.y < value);
+        self.flag_set_if(status_flags::ZERO, self.r.y == value);
+        self.flag_set_if(status_flags::CARRY, self.r.y >= value);
     }
 
     // Decrement Memory by One
@@ -1008,6 +1115,87 @@ mod tests {
         cpu.eor(0b01111_1111);
         assert!(cpu.r.a == 0);
         assert!(cpu.r.sr == status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_cmp_less() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0;
+        cpu.cmp(1);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_cmp_equal() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0;
+        cpu.cmp(0);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == (status_flags::ZERO | status_flags::CARRY));
+    }
+
+    #[test]
+    fn cpu_cmp_greater() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 1;
+        cpu.cmp(0);
+        assert!(cpu.r.a == 1);
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_cpx_less() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 0;
+        cpu.cpx(1);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_cpx_equal() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 0;
+        cpu.cpx(0);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.sr == (status_flags::ZERO | status_flags::CARRY));
+    }
+
+    #[test]
+    fn cpu_cpx_greater() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 1;
+        cpu.cpx(0);
+        assert!(cpu.r.x == 1);
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_cpy_less() {
+        let mut cpu = Cpu::new();
+        cpu.r.y = 0;
+        cpu.cpy(1);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_cpy_equal() {
+        let mut cpu = Cpu::new();
+        cpu.r.y = 0;
+        cpu.cpy(0);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == (status_flags::ZERO | status_flags::CARRY));
+    }
+
+    #[test]
+    fn cpu_cpy_greater() {
+        let mut cpu = Cpu::new();
+        cpu.r.y = 1;
+        cpu.cpy(0);
+        assert!(cpu.r.y == 1);
+        assert!(cpu.r.sr == status_flags::CARRY);
     }
 
     #[test]
