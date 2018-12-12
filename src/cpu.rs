@@ -282,11 +282,32 @@ impl Cpu {
                 7
             }
 
+            // EOR X,ind
+            0x41 => {
+                let value = self.fetch_x_ind();
+                self.eor(value);
+                6
+            }
+
+            // EOR zpg
+            0x45 => {
+                let value = self.fetch_zpg();
+                self.eor(value);
+                3
+            }
+
             // LSR zpg
             0x46 => {
                 let value = self.fetch_zpg();
                 self.lsr(value);
                 5
+            }
+
+            // EOR #
+            0x49 => {
+                let value = self.fetch();
+                self.eor(value);
+                2
             }
 
             // LSR A
@@ -296,6 +317,13 @@ impl Cpu {
                 2
             }
 
+            // EOR abs
+            0x4d => {
+                let value = self.fetch_abs();
+                self.eor(value);
+                4
+            }
+
             // LSR abs
             0x4e => {
                 let value = self.fetch_abs();
@@ -303,11 +331,39 @@ impl Cpu {
                 6
             }
 
+            // EOR ind,Y
+            0x51 => {
+                let value = self.fetch_ind_y();
+                self.eor(value);
+                5
+            }
+
+            // EOR zpg,X
+            0x55 => {
+                let value = self.fetch_zpg_x();
+                self.eor(value);
+                4
+            }
+
             // LSR zpg,X
             0x56 => {
                 let value = self.fetch_zpg_x();
                 self.lsr(value);
                 6
+            }
+
+            // EOR abs,Y
+            0x59 => {
+                let value = self.fetch_abs_y();
+                self.eor(value);
+                4
+            }
+
+            // EOR abs,X
+            0x5d => {
+                let value = self.fetch_abs_x();
+                self.eor(value);
+                4
             }
 
             // LSR abs,X
@@ -552,7 +608,10 @@ impl Cpu {
     }
 
     // Exclusive-OR Memory with Accumulator
-    fn eor(&mut self) {
+    fn eor(&mut self, value : u8) {
+        self.r.a ^= value;
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Increment Memory by One
@@ -920,6 +979,33 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b1111_1111;
         cpu.and(0b0000_0000);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_eor_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1010_0101;
+        cpu.eor(0b1100_1100);
+        assert!(cpu.r.a == 0b0110_1001);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_eor_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1111_1111;
+        cpu.eor(0b0110_1001);
+        assert!(cpu.r.a == 0b1001_0110);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_eor_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1111_1111;
+        cpu.eor(0b01111_1111);
         assert!(cpu.r.a == 0);
         assert!(cpu.r.sr == status_flags::ZERO);
     }
