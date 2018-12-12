@@ -434,6 +434,12 @@ impl Cpu {
                 7
             }
 
+            // DEY
+            0x88 => {
+                self.dey();
+                2
+            }
+
             // CLV
             0xb8 => {
                 self.clv();
@@ -468,10 +474,22 @@ impl Cpu {
                 3
             }
 
+            // INY
+            0xc8 => {
+                self.iny();
+                2
+            }
+
             // CMP #
             0xc9 => {
                 let value = self.fetch();
                 self.cmp(value);
+                2
+            }
+
+            // DEX
+            0xca => {
+                self.dex();
                 2
             }
 
@@ -535,6 +553,12 @@ impl Cpu {
                 let value = self.fetch_zpg();
                 self.cpx(value);
                 3
+            }
+
+            // INX
+            0xe8 => {
+                self.inx();
+                2
             }
 
             // NOP
@@ -758,10 +782,16 @@ impl Cpu {
 
     // Decrement Index X by One
     fn dex(&mut self) {
+        self.r.x -= 1;
+        self.flag_set_if(status_flags::NEG, self.r.x & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.x == 0);
     }
 
     // Decrement Index Y by One
     fn dey(&mut self) {
+        self.r.y -= 1;
+        self.flag_set_if(status_flags::NEG, self.r.y & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.y == 0);
     }
 
     // Exclusive-OR Memory with Accumulator
@@ -777,10 +807,16 @@ impl Cpu {
 
     // Increment Index X by One
     fn inx(&mut self) {
+        self.r.x += 1;
+        self.flag_set_if(status_flags::NEG, self.r.x & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.x == 0);
     }
 
     // Increment Index Y by One
     fn iny(&mut self) {
+        self.r.y += 1;
+        self.flag_set_if(status_flags::NEG, self.r.y & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.y == 0);
     }
 
     // Jump to New Location
