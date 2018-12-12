@@ -603,12 +603,8 @@ impl Cpu {
     // OR Memory with Accumulator
     fn ora(&mut self, value: u8) {
         self.r.a |= value;
-        if self.r.a == 0 {
-            self.r.sr |= status_flags::ZERO;
-        }
-        if (self.r.a & 0b1000_0000) != 0  {
-            self.r.sr |= status_flags::NEG;
-        }
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Push Accumulator on Stack
