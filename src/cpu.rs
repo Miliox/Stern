@@ -198,6 +198,13 @@ impl Cpu {
                 6
             }
 
+            // BIT zpg
+            0x24 => {
+                let value = self.fetch_zpg();
+                self.bit(value);
+                3
+            }
+
             // AND zpg
             0x25 => {
                 let value = self.fetch_zpg();
@@ -224,6 +231,13 @@ impl Cpu {
                 let value = self.r.a;
                 self.rol(value);
                 2
+            }
+
+            // BIT abs
+            0x2c => {
+                let value = self.fetch_abs();
+                self.bit(value);
+                4
             }
 
             // AND abs
@@ -634,9 +648,11 @@ impl Cpu {
     fn beq(&mut self) {
     }
 
-
     // Test Bits in Memory with Accumulator
-    fn bit(&mut self) {
+    fn bit(&mut self, value: u8) {
+        self.flag_set_if(status_flags::NEG, value & 0x80 != 0);
+        self.flag_set_if(status_flags::OVER, value & 0x40 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == value);
     }
 
     // Branch on Result Minus
@@ -1196,6 +1212,24 @@ mod tests {
         cpu.cpy(0);
         assert!(cpu.r.y == 1);
         assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_bit_equal() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0b1000_0000;
+        cpu.bit(0b1000_0000);
+        assert!(cpu.r.a == 0b1000_0000);
+        assert!(cpu.r.sr == (status_flags::NEG | status_flags::ZERO));
+    }
+
+    #[test]
+    fn cpu_bit_flags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0;
+        cpu.bit(0b1100_0000);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == (status_flags::NEG | status_flags::OVER));
     }
 
     #[test]
