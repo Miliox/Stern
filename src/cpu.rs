@@ -281,6 +281,12 @@ impl Cpu {
                 6
             }
 
+            // SEC
+            0x38 => {
+                self.sec();
+                2
+            }
+
             // AND abs,Y
             0x39 => {
                 let value = self.fetch_abs_y();
@@ -425,6 +431,12 @@ impl Cpu {
                 let value = self.fetch_zpg_x();
                 self.ror(value);
                 6
+            }
+
+            // SEI
+            0x78 => {
+                self.sei();
+                2
             }
 
             // ROR abs,X
@@ -572,6 +584,12 @@ impl Cpu {
                 let value = self.fetch_abs();
                 self.cpx(value);
                 4
+            }
+
+            // SED
+            0xf8 => {
+                self.sed();
+                2
             }
 
             _ => panic!("opcode {:x} not implemented yet!", opcode)
@@ -913,14 +931,17 @@ impl Cpu {
 
     // Set Carry Flag
     fn sec(&mut self) {
+        self.flag_set(status_flags::CARRY);
     }
 
     // Set Decimal Flag
     fn sed(&mut self) {
+        self.flag_set(status_flags::DEC);
     }
 
     // Set Interrupt Disable Status
     fn sei(&mut self) {
+        self.flag_set(status_flags::IRQD);
     }
 
     // Store Accumulator in Memory
@@ -1332,6 +1353,27 @@ mod tests {
         cpu.r.sr = status_flags::OVER | status_flags::UNUSED;
         cpu.clv();
         assert!(cpu.r.sr == status_flags::UNUSED);
+    }
+
+    #[test]
+    fn cpu_sec() {
+        let mut cpu = Cpu::new();
+        cpu.sec();
+        assert!(cpu.r.sr == status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_sed() {
+        let mut cpu = Cpu::new();
+        cpu.sed();
+        assert!(cpu.r.sr == status_flags::DEC);
+    }
+
+    #[test]
+    fn cpu_sei() {
+        let mut cpu = Cpu::new();
+        cpu.sei();
+        assert!(cpu.r.sr == status_flags::IRQD);
     }
 
     #[test]
