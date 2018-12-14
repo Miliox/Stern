@@ -637,6 +637,13 @@ impl Cpu {
                 3
             }
 
+            // INC zpg
+            0xe6 => {
+                let addr = self.fetch_zpg_address();
+                self.room[addr] = self.inc(self.room[addr]);
+                5
+            }
+
             // INX
             0xe8 => {
                 self.inx();
@@ -663,6 +670,13 @@ impl Cpu {
                 4
             }
 
+            // INC abs
+            0xee => {
+                let addr = self.fetch_abs_address();
+                self.room[addr] = self.inc(self.room[addr]);
+                6
+            }
+
             // SBC abs
             0xed => {
                 let value = self.fetch_abs();
@@ -684,6 +698,19 @@ impl Cpu {
                 4
             }
 
+            // INC zpg,X
+            0xf6 => {
+                let addr = self.fetch_zpg_x_address();
+                self.room[addr] = self.inc(self.room[addr]);
+                6
+            }
+
+            // SED
+            0xf8 => {
+                self.sed();
+                2
+            }
+
             // SBC abs,Y
             0xf9 => {
                 let value = self.fetch_abs_y();
@@ -693,15 +720,16 @@ impl Cpu {
 
             // SBC abs,X
             0xfd => {
-                let value = self.fetch_abs_y();
+                let value = self.fetch_abs_x();
                 self.sbc(value);
                 4
             }
 
-            // SED
-            0xf8 => {
-                self.sed();
-                2
+            // INC abs,X
+            0xfe => {
+                let addr = self.fetch_abs_x_address();
+                self.room[addr] = self.inc(self.room[addr]);
+                7
             }
 
             _ => panic!("opcode {:x} not implemented yet!", opcode)
