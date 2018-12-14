@@ -508,10 +508,136 @@ impl Cpu {
                 2
             }
 
+            // LDY #
+            0xa0 => {
+                let value = self.fetch();
+                self.ldy(value);
+                2
+            }
+
+            // LDA X,ind
+            0xa1 => {
+                let value = self.fetch_x_ind();
+                self.lda(value);
+                6
+            }
+
+            // LDX #
+            0xa2 => {
+                let value = self.fetch();
+                self.ldx(value);
+                2
+            }
+
+            // LDY zpg
+            0xa4 => {
+                let value = self.fetch_zpg();
+                self.ldy(value);
+                3
+            }
+
+            // LDA zpg
+            0xa5 => {
+                let value = self.fetch_zpg();
+                self.lda(value);
+                3
+            }
+
+            // LDX zpg
+            0xa6 => {
+                let value = self.fetch_zpg();
+                self.ldx(value);
+                3
+            }
+
+            // LDA #
+            0xa9 => {
+                let value = self.fetch();
+                self.lda(value);
+                2
+            }
+
+            // LDY abs
+            0xac => {
+                let value = self.fetch_abs();
+                self.ldy(value);
+                4
+            }
+
+            // LDA abs
+            0xad => {
+                let value = self.fetch_abs();
+                self.lda(value);
+                4
+            }
+
+            // LDX abs
+            0xae => {
+                let value = self.fetch_abs();
+                self.ldx(value);
+                4
+            }
+
+            // LDA ind,Y
+            0xb1 => {
+                let value = self.fetch_ind_y();
+                self.lda(value);
+                5
+            }
+
+            // LDY zpg,X
+            0xb4 => {
+                let value = self.fetch_zpg_x();
+                self.ldy(value);
+                4
+            }
+
+            // LDA zpg,X
+            0xb5 => {
+                let value = self.fetch_zpg_x();
+                self.lda(value);
+                4
+            }
+
+            // LDX zpg,y
+            0xb6 => {
+                let value = self.fetch_zpg_y();
+                self.ldx(value);
+                4
+            }
+
             // CLV
             0xb8 => {
                 self.clv();
                 2
+            }
+
+            // LDA abs,Y
+            0xb9 => {
+                let value = self.fetch_abs_y();
+                self.lda(value);
+                4
+            }
+
+            // LDY abs,X
+            0xbc => {
+                let value = self.fetch_abs_x();
+                self.ldy(value);
+                4
+            }
+
+            // LDA abs,X
+            0xbd => {
+                let value = self.fetch_abs_x();
+                self.lda(value);
+                4
+            }
+
+            // LDX abs,Y
+            0xbe => {
+                let value = self.fetch_abs_y();
+                self.ldx(value);
+                4
             }
 
             // CPY #
@@ -1098,15 +1224,18 @@ impl Cpu {
     }
 
     // Load Accumulator with Memory
-    fn lda(&mut self) {
+    fn lda(&mut self, value: u8) {
+        self.r.a = value;
     }
 
     // Load Index X with Memory
-    fn ldx(&mut self) {
+    fn ldx(&mut self, value: u8) {
+        self.r.x = value;
     }
 
     // Load Index Y with Memory
-    fn ldy(&mut self) {
+    fn ldy(&mut self, value: u8) {
+        self.r.y = value;
     }
 
     // Shift One Bit Right (Memory or Accumulator)
@@ -1796,6 +1925,30 @@ mod tests {
         let mut cpu = Cpu::new();
         assert!(cpu.dec(0x00) == 0xff);
         assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_lda() {
+        let mut cpu = Cpu::new();
+        cpu.lda(0x88);
+        assert!(cpu.r.a == 0x88);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_ldx() {
+        let mut cpu = Cpu::new();
+        cpu.ldx(0x3a);
+        assert!(cpu.r.x == 0x3a);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_ldy() {
+        let mut cpu = Cpu::new();
+        cpu.ldy(0xab);
+        assert!(cpu.r.y == 0xab);
+        assert!(cpu.r.sr == 0);
     }
 
     #[test]
