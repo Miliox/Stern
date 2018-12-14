@@ -711,7 +711,7 @@ impl Cpu {
         self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
         self.flag_set_if(status_flags::ZERO, self.r.a == 0);
         self.flag_set_if(status_flags::CARRY, result > 0xff);
-        self.flag_set_if(status_flags::OVER, result > 0x7f);
+        self.flag_set_if(status_flags::OVER, result >= 128);
     }
 
     // AND Memory with Accumulator
@@ -948,7 +948,29 @@ impl Cpu {
     }
 
     // Subtract Memory from Accumulator with Borrow
-    fn sbc(&mut self) {
+    fn sbc(&mut self, value: u8) {
+        let mut result: i16 = self.r.a as i16 - value as i16;
+
+        if self.r.sr & status_flags::CARRY != 0 {
+            result -= 1;
+        }
+
+        if self.r.sr & status_flags::DEC != 0 {
+            // BCD Mode
+            if result & 0xf0 > 0x90 {
+                result -= 0x60;
+            }
+
+            if result & 0x0f > 0x09 {
+                result -= 0x06;
+            }
+        }
+
+        self.r.a = result as u8;
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
+        self.flag_set_if(status_flags::CARRY, result < 0);
+        self.flag_set_if(status_flags::OVER, result < -128 || result >= 128);
     }
 
     // Set Carry Flag
@@ -1454,6 +1476,34 @@ mod tests {
         cpu.adc(0x07);
         assert!(cpu.r.a == 0);
         assert!(cpu.r.sr == status_flags::CARRY|status_flags::ZERO|status_flags::OVER|status_flags::DEC);
+    }
+
+    #[test]
+    fn cpu_sbc_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x74;
+        cpu.sbc(0x32);
+        assert!(cpu.r.a == 0x42);
+        assert!(cpu.r.sr == 0, "{:x}", cpu.r.sr);
+    }
+
+    #[test]
+    fn cpu_sbc_with_carry_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x5e;
+        cpu.sbc(0x29);
+        assert!(cpu.r.a == 0x35);
+        assert!(cpu.r.sr == 0, "{:x}", cpu.r.sr);
+    }
+
+    #[test]
+    fn cpu_sbc_with_carry_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x15;
+        cpu.r.sr = status_flags::CARRY;
+        cpu.sbc(0x14);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
     }
 
     #[test]
