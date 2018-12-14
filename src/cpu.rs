@@ -405,11 +405,32 @@ impl Cpu {
                 7
             }
 
+            // ADC X,ind
+            0x61 => {
+                let value = self.fetch_x_ind();
+                self.adc(value);
+                6
+            }
+
+            // ADC zpg
+            0x65 => {
+                let value = self.fetch_zpg();
+                self.adc(value);
+                3
+            }
+
             // ROR zpg
             0x66 => {
                 let value = self.fetch_zpg();
                 self.ror(value);
                 5
+            }
+
+            // ADC #
+            0x69 => {
+                let value = self.fetch();
+                self.adc(value);
+                2
             }
 
             // ROR A
@@ -419,11 +440,32 @@ impl Cpu {
                 2
             }
 
+            // ADC abs
+            0x6d => {
+                let value = self.fetch_abs();
+                self.adc(value);
+                4
+            }
+
             // ROR abs
             0x6e => {
                 let value = self.fetch_abs();
                 self.ror(value);
                 6
+            }
+
+            // ADC ind,Y
+            0x71 => {
+                let value = self.fetch_ind_y();
+                self.adc(value);
+                5
+            }
+
+            // ADC zpg,X
+            0x75 => {
+                let value = self.fetch_zpg_x();
+                self.adc(value);
+                4
             }
 
             // ROR zpg,X
@@ -437,6 +479,20 @@ impl Cpu {
             0x78 => {
                 self.sei();
                 2
+            }
+
+            // ADC abs,Y
+            0x79 => {
+                let value = self.fetch_abs_y();
+                self.adc(value);
+                4
+            }
+
+            // ADC abs,X
+            0x7d => {
+                let value = self.fetch_abs_x();
+                self.adc(value);
+                4
             }
 
             // ROR abs,X
