@@ -1507,6 +1507,26 @@ mod tests {
     }
 
     #[test]
+    fn cpu_sbc_bcd_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x24;
+        cpu.r.sr = status_flags::DEC;
+        cpu.sbc(0x15);
+        assert!(cpu.r.a == 0x09);
+        assert!(cpu.r.sr == status_flags::DEC);
+    }
+
+    #[test]
+    fn cpu_sbc_bcd_carry_overflow() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x15;
+        cpu.r.sr = status_flags::DEC | status_flags::CARRY;
+        cpu.sbc(0x24);
+        assert!(cpu.r.a == 0x90);
+        assert!(cpu.r.sr == status_flags::DEC | status_flags::NEG | status_flags::CARRY);
+    }
+
+    #[test]
     fn cpu_instruction_brk() {
         let mut cpu = Cpu::new();
         cpu.load([0x00, 0x00, 0x00].to_vec());
