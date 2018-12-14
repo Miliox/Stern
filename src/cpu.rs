@@ -732,14 +732,43 @@ impl Cpu {
 
     // Fetchs the absolute address + x from the program and resolve his memory value
     fn fetch_abs_x(&mut self) -> u8 {
-        let addr = self.fetch_address() + self.r.x as usize;
+        let addr = self.fetch_abs_x_address();
         self.room[addr]
     }
 
     // Fetchs the absolute address + y from the program and resolve his memory value
     fn fetch_abs_y(&mut self) -> u8 {
-        let addr = self.fetch_address() + self.r.y as usize;
+        let addr = self.fetch_abs_y_address();
         self.room[addr]
+    }
+
+    // Fetch the absolute address
+    fn fetch_abs_address(&mut self) -> usize {
+        self.fetch_address()
+    }
+
+    // Fetch the absolute address + x
+    fn fetch_abs_x_address(&mut self) -> usize {
+        let addr = self.fetch_address();
+        let offset = self.r.x as usize;
+
+        if addr & 0xff + offset > 0xff {
+            self.clock += 1;
+        }
+
+        addr + offset
+    }
+
+    // Fetch the absolute address + y
+    fn fetch_abs_y_address(&mut self) -> usize {
+        let addr = self.fetch_address();
+        let offset = self.r.y as usize;
+
+        if addr & 0xff + offset > 0xff {
+            self.clock += 1;
+        }
+
+        addr + offset
     }
 
     // Fetchs the zeropage address from the program and resolve his memory value
@@ -750,14 +779,29 @@ impl Cpu {
 
     // Fetchs the zeropage address + x from the program and resolve his memory value
     fn fetch_zpg_x(&mut self) -> u8 {
-        let addr = self.fetch() as usize + self.r.x as usize;
+        let addr = self.fetch_zpg_x_address();
         self.room[addr]
     }
 
     // Fetchs the zeropage address + y from the program and resolve his memory value
     fn fetch_zpg_y(&mut self) -> u8 {
-        let addr = self.fetch() as usize + self.r.y as usize;
+        let addr = self.fetch_zpg_y_address();
         self.room[addr]
+    }
+
+    // Fetch zeropage address
+    fn fetch_zpg_address(&mut self) -> usize {
+        self.fetch() as usize
+    }
+
+    // Fetch zeropage address + x from the program
+    fn fetch_zpg_x_address(&mut self) -> usize {
+        self.fetch_zpg_address() + self.r.x as usize
+    }
+
+    // Fetch zeropage address + y from the program
+    fn fetch_zpg_y_address(&mut self) -> usize {
+        self.fetch_zpg_address() + self.r.y as usize
     }
 
     // Fetchs an indirect address in zero page + x and resolve his memory value
