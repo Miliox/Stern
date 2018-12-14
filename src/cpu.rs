@@ -343,6 +343,13 @@ impl Cpu {
                 2
             }
 
+            // JMP abs
+            0x4c => {
+                let addr = self.fetch_abs_address();
+                self.jmp(addr);
+                3
+            }
+
             // EOR abs
             0x4d => {
                 let value = self.fetch_abs();
@@ -438,6 +445,14 @@ impl Cpu {
                 let value = self.r.a;
                 self.ror(value);
                 2
+            }
+
+            // JMP ind
+            0x6c => {
+                let ind_addr = self.fetch_abs_address();
+                let addr = self.read_address(ind_addr);
+                self.jmp(addr);
+                5
             }
 
             // ADC abs
@@ -931,7 +946,7 @@ impl Cpu {
     /// Fetchs the next byte indexed by pc register and increment pc by one
     fn fetch(&mut self) -> u8 {
         let b = self.room[self.r.pc as usize];
-        self.r.pc += 1;
+        self.r.pc = self.r.pc.wrapping_add(1);
         b
     }
 
@@ -1252,7 +1267,8 @@ impl Cpu {
     }
 
     // Jump to New Location
-    fn jmp(&mut self) {
+    fn jmp(&mut self, addr: usize) {
+        self.r.pc = addr as u16;
     }
 
     // Jump to New Location Saving Return Address
@@ -2212,6 +2228,13 @@ mod tests {
     }
 
     #[test]
+    fn cpu_jmp() {
+        let mut cpu = Cpu::new();
+        cpu.jmp(0x3489);
+        assert!(cpu.r.pc == 0x3489);
+    }
+
+    #[test]
     fn cpu_instruction_brk() {
         let mut cpu = Cpu::new();
         cpu.load([0x00, 0x00, 0x00].to_vec());
@@ -2328,4 +2351,19 @@ mod tests {
         assert!(cpu.clock == 4);
     }
 
+    #[test]
+    fn cpu_instruction_jmp_abs() {
+        let mut cpu = Cpu::new();
+        cpu.load([0x4c, 0x21, 0x43].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0x4321);
+    }
+
+    #[test]
+    fn cpu_instruction_jmp_ind() {
+        let mut cpu = Cpu::new();
+        cpu.load([0x6c, 0x03, 0x00, 0xef, 0xbe].to_vec());
+        cpu.step();
+        assert!(cpu.r.pc == 0xbeef);
+    }
 }
