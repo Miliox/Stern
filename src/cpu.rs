@@ -773,7 +773,7 @@ impl Cpu {
 
     // Fetchs the zeropage address from the program and resolve his memory value
     fn fetch_zpg(&mut self) -> u8 {
-        let addr = self.fetch() as usize;
+        let addr = self.fetch_zpg_address();
         self.room[addr]
     }
 
@@ -806,16 +806,34 @@ impl Cpu {
 
     // Fetchs an indirect address in zero page + x and resolve his memory value
     fn fetch_x_ind(&mut self) -> u8 {
-        let zpg_addr = (self.fetch() as usize) + (self.r.x as usize);
-        let addr = self.read_address(zpg_addr);
+        let addr = self.fetch_x_ind_address();
         self.room[addr]
     }
 
-    // Fetchs an indirect address in zero page, increment by y and resolve his memory value
+    // Fetchs an indirect address in zero page + x
+    fn fetch_x_ind_address(&mut self) -> usize {
+        let zpg_addr = self.fetch_zpg_address() + (self.r.x as usize);
+        self.read_address(zpg_addr & 0xff)
+    }
+
+    // Fetchs an indirect address in zero page, then increment by y and resolve his memory value
     fn fetch_ind_y(&mut self) -> u8 {
         let zpg_addr = self.fetch() as usize;
         let addr = self.read_address(zpg_addr) + (self.r.y as usize);
         self.room[addr]
+    }
+
+    // Fetchs an indirect address in zero page, then increment by y
+    fn fetch_ind_y_address(&mut self) -> usize {
+        let zpg_addr = self.fetch() as usize;
+        let addr = self.read_address(zpg_addr);
+        let offset = self.r.y as usize;
+
+        if (addr & 0xff) + offset > 0xff {
+            self.clock += 1;
+        }
+
+        addr + offset
     }
 
     // Read the address from memory by a given memory address
