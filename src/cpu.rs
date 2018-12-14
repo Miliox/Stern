@@ -542,6 +542,13 @@ impl Cpu {
                 3
             }
 
+            // DEC zpg
+            0xc6 => {
+                let addr = self.fetch_zpg_address();
+                self.room[addr] = self.dec(self.room[addr]);
+                5
+            }
+
             // INY
             0xc8 => {
                 self.iny();
@@ -575,6 +582,13 @@ impl Cpu {
                 4
             }
 
+            // DEC abs
+            0xce => {
+                let addr = self.fetch_abs_address();
+                self.room[addr] = self.dec(self.room[addr]);
+                3
+            }
+
             // CMP ind,Y
             0xd1 => {
                 let value = self.fetch_ind_y();
@@ -587,6 +601,13 @@ impl Cpu {
                 let value = self.fetch_zpg_x();
                 self.cmp(value);
                 4
+            }
+
+            // DEC zpg,X
+            0xd6 => {
+                let addr = self.fetch_zpg_x_address();
+                self.room[addr] = self.dec(self.room[addr]);
+                6
             }
 
             // CLD
@@ -607,6 +628,13 @@ impl Cpu {
                 let value = self.fetch_abs_x();
                 self.cmp(value);
                 4
+            }
+
+            // DEC abs,X
+            0xde => {
+                let addr = self.fetch_abs_x_address();
+                self.room[addr] = self.dec(self.room[addr]);
+                7
             }
 
             // CPX #
