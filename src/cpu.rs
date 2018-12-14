@@ -90,7 +90,7 @@ impl Cpu {
 
     pub fn step(&mut self) {
         let opcode = self.room[self.r.pc as usize];
-        self.r.pc += 1;
+        self.r.pc = self.r.pc.wrapping_add(1);
 
         let elapsed = match opcode {
             // BRK impl
@@ -991,21 +991,21 @@ impl Cpu {
     }
 
     // Decrement Memory by One
-    fn dec(&mut self) {
+    fn dec(&mut self, value: u8) -> u8 {
+        let result = value.wrapping_sub(1);
+        self.flag_set_if(status_flags::NEG, result & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, result == 0);
+        result
     }
 
     // Decrement Index X by One
     fn dex(&mut self) {
-        self.r.x -= 1;
-        self.flag_set_if(status_flags::NEG, self.r.x & 0x80 != 0);
-        self.flag_set_if(status_flags::ZERO, self.r.x == 0);
+        self.r.x = self.dec(self.r.x);
     }
 
     // Decrement Index Y by One
     fn dey(&mut self) {
-        self.r.y -= 1;
-        self.flag_set_if(status_flags::NEG, self.r.y & 0x80 != 0);
-        self.flag_set_if(status_flags::ZERO, self.r.y == 0);
+        self.r.y = self.dec(self.r.y);
     }
 
     // Exclusive-OR Memory with Accumulator
@@ -1016,21 +1016,21 @@ impl Cpu {
     }
 
     // Increment Memory by One
-    fn inc(&mut self) {
+    fn inc(&mut self, value: u8) -> u8 {
+        let result = value.wrapping_add(1);
+        self.flag_set_if(status_flags::NEG, result & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, result == 0);
+        result
     }
 
     // Increment Index X by One
     fn inx(&mut self) {
-        self.r.x += 1;
-        self.flag_set_if(status_flags::NEG, self.r.x & 0x80 != 0);
-        self.flag_set_if(status_flags::ZERO, self.r.x == 0);
+        self.r.x = self.inc(self.r.x);
     }
 
     // Increment Index Y by One
     fn iny(&mut self) {
-        self.r.y += 1;
-        self.flag_set_if(status_flags::NEG, self.r.y & 0x80 != 0);
-        self.flag_set_if(status_flags::ZERO, self.r.y == 0);
+        self.r.y = self.inc(self.r.y);
     }
 
     // Jump to New Location
@@ -1698,6 +1698,48 @@ mod tests {
         cpu.sbc(0x24);
         assert!(cpu.r.a == 0x90);
         assert!(cpu.r.sr == status_flags::DEC | status_flags::NEG | status_flags::CARRY);
+    }
+
+    #[test]
+    fn cpu_inc_noflags() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.inc(0x49) == 0x4a);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_inc_neg() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.inc(0x80) == 0x81);
+        assert!(cpu.r.sr == status_flags::NEG);
+    }
+
+    #[test]
+    fn cpu_inc_zero() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.inc(0xff) == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_dec_noflags() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.dec(0x80) == 0x7f);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_dec_zero() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.dec(0x01) == 0x00);
+        assert!(cpu.r.sr == status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_dec_neg() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.dec(0x00) == 0xff);
+        assert!(cpu.r.sr == status_flags::NEG);
     }
 
     #[test]
