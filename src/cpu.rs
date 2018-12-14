@@ -689,7 +689,29 @@ impl Cpu {
     }
 
     // Add Memory to Accumulator with Carry
-    fn adc(&mut self) {
+    fn adc(&mut self, value: u8) {
+        let mut result: u16 = self.r.a as u16 + value as u16;
+
+        if self.r.sr & status_flags::CARRY != 0 {
+            result += 1;
+        }
+
+        if self.r.sr & status_flags::DEC != 0 {
+            // BCD Mode
+            if result & 0x0f > 0x09 {
+                result += 0x06;
+            }
+
+            if result & 0xf0 > 0x90 {
+                result += 0x60;
+            }
+        }
+
+        self.r.a = result as u8;
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
+        self.flag_set_if(status_flags::CARRY, result > 0xff);
+        self.flag_set_if(status_flags::OVER, result > 0x7f);
     }
 
     // AND Memory with Accumulator
@@ -1374,6 +1396,64 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.sei();
         assert!(cpu.r.sr == status_flags::IRQD);
+    }
+
+    #[test]
+    fn cpu_adc_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x3a;
+        cpu.adc(0x21);
+        assert!(cpu.r.a == 0x5b);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_adc_with_carry_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::CARRY;
+        cpu.r.a = 0x3a;
+        cpu.adc(0x21);
+        assert!(cpu.r.a == 0x5c);
+        assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_adc_carry_overflow_and_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0xf0;
+        cpu.adc(0x10);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::OVER|status_flags::CARRY|status_flags::ZERO);
+    }
+
+    #[test]
+    fn cpu_adc_bcd_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::DEC;
+        cpu.r.a = 0x49;
+        cpu.adc(0x12);
+        assert!(cpu.r.a == 0x61);
+        assert!(cpu.r.sr == status_flags::DEC);
+    }
+
+    #[test]
+    fn cpu_adc_bcd_with_carry_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::DEC|status_flags::CARRY;
+        cpu.r.a = 0x49;
+        cpu.adc(0x12);
+        assert!(cpu.r.a == 0x62);
+        assert!(cpu.r.sr == status_flags::DEC);
+    }
+
+    #[test]
+    fn cpu_adc_bcd_carry_overflow_and_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.sr = status_flags::DEC;
+        cpu.r.a = 0x93;
+        cpu.adc(0x07);
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.sr == status_flags::CARRY|status_flags::ZERO|status_flags::OVER|status_flags::DEC);
     }
 
     #[test]
