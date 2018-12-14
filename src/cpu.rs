@@ -616,6 +616,13 @@ impl Cpu {
                 2
             }
 
+            // SBC X,ind
+            0xe1 => {
+                let value = self.fetch_x_ind();
+                self.sbc(value);
+                6
+            }
+
             // CPX zpg
             0xe4 => {
                 let value = self.fetch_zpg();
@@ -623,9 +630,23 @@ impl Cpu {
                 3
             }
 
+            // SBC zpg
+            0xe5 => {
+                let value = self.fetch_zpg();
+                self.sbc(value);
+                3
+            }
+
             // INX
             0xe8 => {
                 self.inx();
+                2
+            }
+
+            // SBC #
+            0xe9 => {
+                let value = self.fetch();
+                self.sbc(value);
                 2
             }
 
@@ -639,6 +660,41 @@ impl Cpu {
             0xec => {
                 let value = self.fetch_abs();
                 self.cpx(value);
+                4
+            }
+
+            // SBC abs
+            0xed => {
+                let value = self.fetch_abs();
+                self.sbc(value);
+                4
+            }
+
+            // SBC ind,Y
+            0xf1 => {
+                let value = self.fetch_ind_y();
+                self.sbc(value);
+                5
+            }
+
+            // SBC zpg,X
+            0xf5 => {
+                let value = self.fetch_zpg_x();
+                self.sbc(value);
+                4
+            }
+
+            // SBC abs,Y
+            0xf9 => {
+                let value = self.fetch_abs_y();
+                self.sbc(value);
+                4
+            }
+
+            // SBC abs,X
+            0xfd => {
+                let value = self.fetch_abs_y();
+                self.sbc(value);
                 4
             }
 
