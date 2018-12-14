@@ -148,6 +148,12 @@ impl Cpu {
                 6
             }
 
+            // BPL
+            0x10 => {
+                self.bpl();
+                2
+            }
+
             // ORA ind,Y
             0x11 => {
                 let value = self.fetch_ind_y();
@@ -260,6 +266,12 @@ impl Cpu {
                 6
             }
 
+            // BMI
+            0x30 => {
+                self.bmi();
+                2
+            }
+
             // AND ind,Y
             0x31 => {
                 let value = self.fetch_ind_y();
@@ -362,6 +374,12 @@ impl Cpu {
                 let value = self.fetch_abs();
                 self.lsr(value);
                 6
+            }
+
+            // BVC
+            0x50 => {
+                self.bvc();
+                2
             }
 
             // EOR ind,Y
@@ -469,6 +487,12 @@ impl Cpu {
                 6
             }
 
+            // BVS
+            0x70 => {
+                self.bvs();
+                2
+            }
+
             // ADC ind,Y
             0x71 => {
                 let value = self.fetch_ind_y();
@@ -526,6 +550,12 @@ impl Cpu {
             // TXA
             0x8a => {
                 self.txa();
+                2
+            }
+
+            // BCC
+            0x90 => {
+                self.bcc();
                 2
             }
 
@@ -621,6 +651,12 @@ impl Cpu {
                 let value = self.fetch_abs();
                 self.ldx(value);
                 4
+            }
+
+            // BCS
+            0xb0 => {
+                self.bcs();
+                2
             }
 
             // LDA ind,Y
@@ -766,6 +802,12 @@ impl Cpu {
                 3
             }
 
+            // BNE
+            0xd0 => {
+                self.bne();
+                2
+            }
+
             // CMP ind,Y
             0xd1 => {
                 let value = self.fetch_ind_y();
@@ -887,6 +929,12 @@ impl Cpu {
                 let value = self.fetch_abs();
                 self.sbc(value);
                 4
+            }
+
+            // BEQ
+            0xf0 => {
+                self.beq();
+                2
             }
 
             // SBC ind,Y
@@ -1137,16 +1185,34 @@ impl Cpu {
         self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
+    // Branch If Condition is Set
+    fn branch_if(&mut self, cond: bool) {
+        let offset = self.fetch() as u16;
+
+        if cond {
+            self.clock += 1;
+
+            if ((self.r.pc & 0xff) + offset) > 0xff {
+                self.clock += 1;
+            }
+
+            self.r.pc = self.r.pc.wrapping_add(offset);
+        }
+    }
+
     // Branch on Carry Clear
     fn bcc(&mut self) {
+        self.branch_if(self.r.sr & status_flags::CARRY == 0);
     }
 
     // Branch on Carry Set
     fn bcs(&mut self) {
+        self.branch_if(self.r.sr & status_flags::CARRY != 0);
     }
 
     // Branch on Result Zero
     fn beq(&mut self) {
+        self.branch_if(self.r.sr & status_flags::ZERO != 0);
     }
 
     // Test Bits in Memory with Accumulator
@@ -1158,14 +1224,17 @@ impl Cpu {
 
     // Branch on Result Minus
     fn bmi(&mut self) {
+        self.branch_if(self.r.sr & status_flags::NEG != 0);
     }
 
     // Branch on Result not Zero
     fn bne(&mut self) {
+        self.branch_if(self.r.sr & status_flags::ZERO == 0);
     }
 
     // Branch on Result Plus
     fn bpl(&mut self) {
+        self.branch_if(self.r.sr & status_flags::NEG == 0);
     }
 
     // Force Break
@@ -1176,10 +1245,12 @@ impl Cpu {
 
     // Branch on Overflow Clear
     fn bvc(&mut self) {
+        self.branch_if(self.r.sr & status_flags::OVER == 0);
     }
 
     // Branch on Overflow Set
     fn bvs(&mut self) {
+        self.branch_if(self.r.sr & status_flags::OVER != 0);
     }
 
     // Clear Carry Flag
