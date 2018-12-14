@@ -508,6 +508,24 @@ impl Cpu {
                 2
             }
 
+            // TXA
+            0x8a => {
+                self.txa();
+                2
+            }
+
+            // TYA
+            0x98 => {
+                self.tya();
+                2
+            }
+
+            // TXS
+            0x9a => {
+                self.txs();
+                2
+            }
+
             // LDY #
             0xa0 => {
                 let value = self.fetch();
@@ -550,10 +568,22 @@ impl Cpu {
                 3
             }
 
+            // TAY
+            0xa8 => {
+                self.tay();
+                2
+            }
+
             // LDA #
             0xa9 => {
                 let value = self.fetch();
                 self.lda(value);
+                2
+            }
+
+            // TAX
+            0xaa => {
+                self.tax();
                 2
             }
 
@@ -617,6 +647,12 @@ impl Cpu {
                 let value = self.fetch_abs_y();
                 self.lda(value);
                 4
+            }
+
+            // TSX
+            0xba => {
+                self.tsx();
+                2
             }
 
             // LDY abs,X
@@ -1361,26 +1397,42 @@ impl Cpu {
 
     // Transfer Accumulator to Index X
     fn tax(&mut self) {
+        self.r.x = self.r.a;
+        self.flag_set_if(status_flags::NEG, self.r.x & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.x == 0);
     }
 
     // Transfer Accumulator to Index Y
     fn tay(&mut self) {
+        self.r.y = self.r.a;
+        self.flag_set_if(status_flags::NEG, self.r.y & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.y == 0);
     }
 
     // Transfer Stack Pointer to Index X
     fn tsx(&mut self) {
+        self.r.x = self.r.sp;
+        self.flag_set_if(status_flags::NEG, self.r.x & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.x == 0);
     }
 
     // Transfer Index X to Accumulator
     fn txa(&mut self) {
+        self.r.a = self.r.x;
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
-    // Transfer Index X to Stack Register
+    // Transfer Index X to Stack Pointer
     fn txs(&mut self) {
+        self.r.sp = self.r.x;
     }
 
     // Transfer Index Y to Accumulator
     fn tya(&mut self) {
+        self.r.a = self.r.y;
+        self.flag_set_if(status_flags::NEG, self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
 }
@@ -1949,6 +2001,214 @@ mod tests {
         cpu.ldy(0xab);
         assert!(cpu.r.y == 0xab);
         assert!(cpu.r.sr == 0);
+    }
+
+    #[test]
+    fn cpu_tax_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x14;
+        cpu.tax();
+        assert!(cpu.r.a == 0x14);
+        assert!(cpu.r.x == 0x14);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tax_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0xb1;
+        cpu.tax();
+        assert!(cpu.r.a == 0xb1);
+        assert!(cpu.r.x == 0xb1);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tax_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0;
+        cpu.tax();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tay_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x41;
+        cpu.tay();
+        assert!(cpu.r.a == 0x41);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0x41);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tay_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0xc4;
+        cpu.tay();
+        assert!(cpu.r.a == 0xc4);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0xc4);
+        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tay_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0;
+        cpu.tay();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tsx_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0x5e;
+        cpu.tsx();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0x5e);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sp == 0x5e);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tsx_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xee;
+        cpu.tsx();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0xee);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sp == 0xee);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tsx_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0;
+        cpu.tsx();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_txa_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 0x11;
+        cpu.txa();
+        assert!(cpu.r.a == 0x11);
+        assert!(cpu.r.x == 0x11);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_txa_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 0x91;
+        cpu.txa();
+        assert!(cpu.r.a == 0x91);
+        assert!(cpu.r.x == 0x91);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_txa_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 0;
+        cpu.txa();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_txs() {
+        let mut cpu = Cpu::new();
+        cpu.r.x = 0xa1;
+        cpu.txs();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0xa1);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sp == 0xa1);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tya_noflags() {
+        let mut cpu = Cpu::new();
+        cpu.r.y = 0x3c;
+        cpu.tya();
+        assert!(cpu.r.a == 0x3c);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0x3c);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tya_neg() {
+        let mut cpu = Cpu::new();
+        cpu.r.y = 0xbb;
+        cpu.tya();
+        assert!(cpu.r.a == 0xbb);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0xbb);
+        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_tya_zero() {
+        let mut cpu = Cpu::new();
+        cpu.r.y = 0;
+        cpu.tya();
+        assert!(cpu.r.a == 0);
+        assert!(cpu.r.x == 0);
+        assert!(cpu.r.y == 0);
+        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sp == 0);
+        assert!(cpu.r.pc == 0);
     }
 
     #[test]
