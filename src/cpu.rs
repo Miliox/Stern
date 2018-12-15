@@ -56,7 +56,7 @@ pub struct Registers {
 
 impl Registers {
     pub fn new() -> Registers {
-        Registers { a: 0, x: 0, y: 0, sr: 0, sp: 0, pc: 0 }
+        Registers { a: 0, x: 0, y: 0, sr: status_flags::UNUSED, sp: 0, pc: 0 }
     }
 }
 
@@ -1180,6 +1180,7 @@ impl Cpu {
     // Set status flag
     fn flag_set(&mut self, flag: u8) {
         self.r.sr |= flag;
+        self.r.sr |= status_flags::UNUSED;
     }
 
     // Conditional set status flag
@@ -1189,11 +1190,13 @@ impl Cpu {
         } else {
             self.r.sr &= !flag;
         }
+        self.r.sr |= status_flags::UNUSED;
     }
 
     // Reset status flag
     fn flag_reset(&mut self, flag: u8) {
         self.r.sr &= !flag;
+        self.r.sr |= status_flags::UNUSED;
     }
 
     // Push on Stack
@@ -1486,7 +1489,7 @@ impl Cpu {
 
     // Pull Processor Status from Stack
     fn plp(&mut self) {
-        self.r.sr = self.stack_pull();
+        self.r.sr = self.stack_pull() | status_flags::UNUSED;
     }
 
     // Rotate One Bit Left (Memory or Accumulator)
@@ -1515,7 +1518,7 @@ impl Cpu {
 
     // Return from Interrupt
     fn rti(&mut self) {
-        self.r.sr = self.stack_pull();
+        self.r.sr = self.stack_pull() | status_flags::UNUSED;
 
         let ll = self.stack_pull() as u16;
         let hh = self.stack_pull() as u16;
@@ -1661,7 +1664,7 @@ mod tests {
         cpu.ora(0x00);
         assert!(cpu.r.pc == 0);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.clock == 0);
     }
 
@@ -1672,7 +1675,7 @@ mod tests {
         cpu.ora(  0b1100_0011);
         assert!(cpu.r.pc == 0);
         assert!(cpu.r.a == 0b1110_0111);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.clock == 0);
     }
 
@@ -1681,7 +1684,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.asl(0b0001_1000);
         assert!(cpu.r.a == 0b0011_0000);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -1690,7 +1693,7 @@ mod tests {
         cpu.r.sr = status_flags::CARRY;
         cpu.asl(0b0101_0101);
         assert!(cpu.r.a == 0b1010_1010);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1698,7 +1701,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.asl(0b1000_0000);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::ZERO | status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1706,7 +1709,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.lsr(0b1001_1001);
         assert!(cpu.r.a == 0b0100_1100);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1714,7 +1717,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.lsr(0b0000_0000);
         assert!(cpu.r.a == 0b0000_0000);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -1722,7 +1725,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.lsr(0b1001_1000);
         assert!(cpu.r.a == 0b0100_1100);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -1730,7 +1733,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.rol(0b1000_0001);
         assert!(cpu.r.a == 0b0000_0010);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1739,7 +1742,7 @@ mod tests {
         cpu.r.sr = status_flags::CARRY;
         cpu.rol(0b0000_0001);
         assert!(cpu.r.a == 0b0000_0011);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -1747,7 +1750,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.rol(0b0100_0000);
         assert!(cpu.r.a == 0b1000_0000);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1757,7 +1760,7 @@ mod tests {
         cpu.rol(0b1000_0000);
         print!("{:?}", cpu);
         assert!(cpu.r.a == 0b0000_0001);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1765,7 +1768,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.rol(0b0000_0000);
         assert!(cpu.r.a == 0b0000_0000);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -1773,7 +1776,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.ror(0b1000_0001);
         assert!(cpu.r.a == 0b0100_0000);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1782,7 +1785,7 @@ mod tests {
         cpu.r.sr = status_flags::CARRY;
         cpu.ror(0b0000_0000);
         assert!(cpu.r.a == 0b1000_0000);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1792,7 +1795,7 @@ mod tests {
         cpu.ror(0b1000_0000);
         print!("{:?}", cpu);
         assert!(cpu.r.a == 0b1100_0000);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1800,7 +1803,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.ror(0b0000_0000);
         assert!(cpu.r.a == 0b0000_0000);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -1810,7 +1813,7 @@ mod tests {
         cpu.ora(  0b0100_0011);
         assert!(cpu.r.pc == 0);
         assert!(cpu.r.a == 0b0110_0111);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 0);
     }
 
@@ -1820,7 +1823,7 @@ mod tests {
         cpu.r.a = 0b1010_0101;
         cpu.and(0b0010_0100);
         assert!(cpu.r.a == 0b0010_0100);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -1829,7 +1832,7 @@ mod tests {
         cpu.r.a = 0b1010_0101;
         cpu.and(0b1010_0100);
         assert!(cpu.r.a == 0b1010_0100);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1838,7 +1841,7 @@ mod tests {
         cpu.r.a = 0b1111_1111;
         cpu.and(0b0000_0000);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -1847,7 +1850,7 @@ mod tests {
         cpu.r.a = 0b1010_0101;
         cpu.eor(0b1100_1100);
         assert!(cpu.r.a == 0b0110_1001);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -1856,7 +1859,7 @@ mod tests {
         cpu.r.a = 0b1111_1111;
         cpu.eor(0b0110_1001);
         assert!(cpu.r.a == 0b1001_0110);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1865,7 +1868,7 @@ mod tests {
         cpu.r.a = 0b1111_1111;
         cpu.eor(0b01111_1111);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -1874,7 +1877,7 @@ mod tests {
         cpu.r.a = 0;
         cpu.cmp(1);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1883,7 +1886,7 @@ mod tests {
         cpu.r.a = 0;
         cpu.cmp(0);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == (status_flags::ZERO | status_flags::CARRY));
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1892,7 +1895,7 @@ mod tests {
         cpu.r.a = 1;
         cpu.cmp(0);
         assert!(cpu.r.a == 1);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1901,7 +1904,7 @@ mod tests {
         cpu.r.x = 0;
         cpu.cpx(1);
         assert!(cpu.r.x == 0);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1910,7 +1913,7 @@ mod tests {
         cpu.r.x = 0;
         cpu.cpx(0);
         assert!(cpu.r.x == 0);
-        assert!(cpu.r.sr == (status_flags::ZERO | status_flags::CARRY));
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1919,7 +1922,7 @@ mod tests {
         cpu.r.x = 1;
         cpu.cpx(0);
         assert!(cpu.r.x == 1);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1928,7 +1931,7 @@ mod tests {
         cpu.r.y = 0;
         cpu.cpy(1);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -1937,7 +1940,7 @@ mod tests {
         cpu.r.y = 0;
         cpu.cpy(0);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == (status_flags::ZERO | status_flags::CARRY));
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1946,7 +1949,7 @@ mod tests {
         cpu.r.y = 1;
         cpu.cpy(0);
         assert!(cpu.r.y == 1);
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
@@ -1955,7 +1958,7 @@ mod tests {
         cpu.r.a = 0b1000_0000;
         cpu.bit(0b1000_0000);
         assert!(cpu.r.a == 0b1000_0000);
-        assert!(cpu.r.sr == (status_flags::NEG | status_flags::ZERO));
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -1964,7 +1967,7 @@ mod tests {
         cpu.r.a = 0;
         cpu.bit(0b1100_0000);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == (status_flags::NEG | status_flags::OVER));
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::OVER | status_flags::UNUSED);
     }
 
     #[test]
@@ -2003,21 +2006,21 @@ mod tests {
     fn cpu_sec() {
         let mut cpu = Cpu::new();
         cpu.sec();
-        assert!(cpu.r.sr == status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_sed() {
         let mut cpu = Cpu::new();
         cpu.sed();
-        assert!(cpu.r.sr == status_flags::DEC);
+        assert!(cpu.r.sr == status_flags::DEC | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_sei() {
         let mut cpu = Cpu::new();
         cpu.sei();
-        assert!(cpu.r.sr == status_flags::IRQD);
+        assert!(cpu.r.sr == status_flags::IRQD | status_flags::UNUSED);
     }
 
     #[test]
@@ -2026,7 +2029,7 @@ mod tests {
         cpu.r.a = 0x3a;
         cpu.adc(0x21);
         assert!(cpu.r.a == 0x5b);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -2036,7 +2039,7 @@ mod tests {
         cpu.r.a = 0x3a;
         cpu.adc(0x21);
         assert!(cpu.r.a == 0x5c);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -2045,37 +2048,39 @@ mod tests {
         cpu.r.a = 0xf0;
         cpu.adc(0x10);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::OVER|status_flags::CARRY|status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::OVER | status_flags::CARRY |
+            status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_adc_bcd_noflags() {
         let mut cpu = Cpu::new();
-        cpu.r.sr = status_flags::DEC;
+        cpu.r.sr = status_flags::DEC | status_flags::UNUSED;
         cpu.r.a = 0x49;
         cpu.adc(0x12);
         assert!(cpu.r.a == 0x61);
-        assert!(cpu.r.sr == status_flags::DEC);
+        assert!(cpu.r.sr == status_flags::DEC | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_adc_bcd_with_carry_noflags() {
         let mut cpu = Cpu::new();
-        cpu.r.sr = status_flags::DEC|status_flags::CARRY;
+        cpu.r.sr = status_flags::DEC | status_flags::CARRY | status_flags::UNUSED;
         cpu.r.a = 0x49;
         cpu.adc(0x12);
         assert!(cpu.r.a == 0x62);
-        assert!(cpu.r.sr == status_flags::DEC);
+        assert!(cpu.r.sr == status_flags::DEC | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_adc_bcd_carry_overflow_and_zero() {
         let mut cpu = Cpu::new();
-        cpu.r.sr = status_flags::DEC;
+        cpu.r.sr = status_flags::DEC | status_flags::UNUSED;
         cpu.r.a = 0x93;
         cpu.adc(0x07);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::CARRY|status_flags::ZERO|status_flags::OVER|status_flags::DEC);
+        assert!(cpu.r.sr == status_flags::CARRY |status_flags::ZERO |
+            status_flags::OVER | status_flags::DEC | status_flags::UNUSED);
     }
 
     #[test]
@@ -2084,7 +2089,7 @@ mod tests {
         cpu.r.a = 0x74;
         cpu.sbc(0x32);
         assert!(cpu.r.a == 0x42);
-        assert!(cpu.r.sr == 0, "{:x}", cpu.r.sr);
+        assert!(cpu.r.sr == status_flags::UNUSED, "{:x}", cpu.r.sr);
     }
 
     #[test]
@@ -2093,7 +2098,7 @@ mod tests {
         cpu.r.a = 0x5e;
         cpu.sbc(0x29);
         assert!(cpu.r.a == 0x35);
-        assert!(cpu.r.sr == 0, "{:x}", cpu.r.sr);
+        assert!(cpu.r.sr == status_flags::UNUSED, "{:x}", cpu.r.sr);
     }
 
     #[test]
@@ -2103,7 +2108,7 @@ mod tests {
         cpu.r.sr = status_flags::CARRY;
         cpu.sbc(0x14);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
@@ -2113,7 +2118,7 @@ mod tests {
         cpu.r.sr = status_flags::DEC;
         cpu.sbc(0x15);
         assert!(cpu.r.a == 0x09);
-        assert!(cpu.r.sr == status_flags::DEC);
+        assert!(cpu.r.sr == status_flags::DEC | status_flags::UNUSED);
     }
 
     #[test]
@@ -2123,49 +2128,49 @@ mod tests {
         cpu.r.sr = status_flags::DEC | status_flags::CARRY;
         cpu.sbc(0x24);
         assert!(cpu.r.a == 0x90);
-        assert!(cpu.r.sr == status_flags::DEC | status_flags::NEG | status_flags::CARRY);
+        assert!(cpu.r.sr == status_flags::DEC | status_flags::NEG | status_flags::CARRY | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_inc_noflags() {
         let mut cpu = Cpu::new();
         assert!(cpu.inc(0x49) == 0x4a);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_inc_neg() {
         let mut cpu = Cpu::new();
         assert!(cpu.inc(0x80) == 0x81);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_inc_zero() {
         let mut cpu = Cpu::new();
         assert!(cpu.inc(0xff) == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_dec_noflags() {
         let mut cpu = Cpu::new();
         assert!(cpu.dec(0x80) == 0x7f);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_dec_zero() {
         let mut cpu = Cpu::new();
         assert!(cpu.dec(0x01) == 0x00);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
     }
 
     #[test]
     fn cpu_dec_neg() {
         let mut cpu = Cpu::new();
         assert!(cpu.dec(0x00) == 0xff);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
     }
 
     #[test]
@@ -2173,7 +2178,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.lda(0x88);
         assert!(cpu.r.a == 0x88);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -2181,7 +2186,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.ldx(0x3a);
         assert!(cpu.r.x == 0x3a);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -2189,7 +2194,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.ldy(0xab);
         assert!(cpu.r.y == 0xab);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
     }
 
     #[test]
@@ -2200,7 +2205,7 @@ mod tests {
         assert!(cpu.r.a == 0x14);
         assert!(cpu.r.x == 0x14);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2213,7 +2218,7 @@ mod tests {
         assert!(cpu.r.a == 0xb1);
         assert!(cpu.r.x == 0xb1);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2226,7 +2231,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2239,7 +2244,7 @@ mod tests {
         assert!(cpu.r.a == 0x41);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0x41);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2252,7 +2257,7 @@ mod tests {
         assert!(cpu.r.a == 0xc4);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0xc4);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2265,7 +2270,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2278,7 +2283,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0x5e);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0x5e);
         assert!(cpu.r.pc == 0);
     }
@@ -2291,7 +2296,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0xee);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0xee);
         assert!(cpu.r.pc == 0);
     }
@@ -2304,7 +2309,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2317,7 +2322,7 @@ mod tests {
         assert!(cpu.r.a == 0x11);
         assert!(cpu.r.x == 0x11);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2330,7 +2335,7 @@ mod tests {
         assert!(cpu.r.a == 0x91);
         assert!(cpu.r.x == 0x91);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2343,7 +2348,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO|status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2356,7 +2361,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0xa1);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0xa1);
         assert!(cpu.r.pc == 0);
     }
@@ -2369,7 +2374,7 @@ mod tests {
         assert!(cpu.r.a == 0x3c);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0x3c);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2382,7 +2387,7 @@ mod tests {
         assert!(cpu.r.a == 0xbb);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0xbb);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2395,7 +2400,7 @@ mod tests {
         assert!(cpu.r.a == 0);
         assert!(cpu.r.x == 0);
         assert!(cpu.r.y == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
     }
@@ -2415,7 +2420,7 @@ mod tests {
         cpu.mmu.write(0xffff, 0x99);
         cpu.step();
         assert!(cpu.r.pc == 0x9911);
-        assert!(cpu.r.sr == status_flags::BRK);
+        assert!(cpu.r.sr == status_flags::BRK | status_flags::UNUSED);
         assert!(cpu.clock == 7);
     }
 
@@ -2426,7 +2431,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.clock == 2);
     }
 
@@ -2442,7 +2447,7 @@ mod tests {
         //   value[mem[offset]] => 0b0011_1001
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0b0011_1001);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 6);
     }
 
@@ -2459,7 +2464,7 @@ mod tests {
         //   value[mem[offset] + 0x01(x)] = 0xff
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0xff);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.clock == 5);
     }
 
@@ -2471,7 +2476,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0b1111_0000);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.clock == 3);
     }
 
@@ -2484,7 +2489,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0b0110_1111);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
     }
 
@@ -2496,7 +2501,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x03);
         assert!(cpu.r.a == 0b0110_1111);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
     }
 
@@ -2509,7 +2514,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x03);
         assert!(cpu.r.a == 0b0001_1111);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
     }
 
@@ -2522,7 +2527,7 @@ mod tests {
         cpu.step();
         assert!(cpu.r.pc == 0x03);
         assert!(cpu.r.a == 0b0001_1111);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
     }
 
@@ -2608,7 +2613,7 @@ mod tests {
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
-        assert!(cpu.r.sr == 0);
+        assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.mmu.read(0x1ff) == 0x39);
     }
 
@@ -2625,7 +2630,7 @@ mod tests {
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
-        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.mmu.read(0x1ff) == 0xab);
     }
 
@@ -2642,7 +2647,7 @@ mod tests {
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
-        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.mmu.read(0x1ff) == 0x00);
     }
 
@@ -2659,7 +2664,7 @@ mod tests {
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
-        assert!(cpu.r.sr == 0x91);
+        assert!(cpu.r.sr == 0x91 | status_flags::UNUSED);
         assert!(cpu.mmu.read(0x1ff) == 0x91);
     }
 
@@ -2678,7 +2683,7 @@ mod tests {
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
-        assert!(cpu.r.sr == 0x91);
+        assert!(cpu.r.sr == 0x91 | status_flags::UNUSED);
         assert!(cpu.r.pc == 0xbeef);
     }
 
