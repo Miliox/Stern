@@ -586,6 +586,34 @@ impl Cpu {
                 7
             }
 
+            // STA X,ind
+            0x81 => {
+                let addr = self.fetch_x_ind_address();
+                self.sta(addr);
+                6
+            }
+
+            // STY zpg
+            0x84 => {
+                let addr = self.fetch_zpg_address();
+                self.sty(addr);
+                3
+            }
+
+            // STA zpg
+            0x85 => {
+                let addr = self.fetch_zpg_address();
+                self.sta(addr);
+                3
+            }
+
+            // STX zpg
+            0x86 => {
+                let addr = self.fetch_zpg_address();
+                self.stx(addr);
+                3
+            }
+
             // DEY
             0x88 => {
                 self.dey();
@@ -598,10 +626,59 @@ impl Cpu {
                 2
             }
 
+            // STY abs
+            0x8c => {
+                let addr = self.fetch_abs_address();
+                self.sty(addr);
+                4
+            }
+
+            // STA abs
+            0x8d => {
+                let addr = self.fetch_abs_address();
+                self.sta(addr);
+                4
+            }
+
+            // STX abs
+            0x8e => {
+                let addr = self.fetch_abs_address();
+                self.stx(addr);
+                4
+            }
+
             // BCC
             0x90 => {
                 self.bcc();
                 2
+            }
+
+            // STA ind,Y
+            0x91 => {
+                let addr = self.fetch_ind_y_address();
+                self.sta(addr);
+                6
+            }
+
+            // STY zpg,X
+            0x94 => {
+                let addr = self.fetch_zpg_x_address();
+                self.sty(addr);
+                4
+            }
+
+            // STA zpg,X
+            0x95 => {
+                let addr = self.fetch_zpg_x_address();
+                self.sta(addr);
+                4
+            }
+
+            // STX zpg,Y
+            0x96 => {
+                let addr = self.fetch_zpg_y_address();
+                self.stx(addr);
+                4
             }
 
             // TYA
@@ -610,10 +687,24 @@ impl Cpu {
                 2
             }
 
+            // STA abs,Y
+            0x99 => {
+                let addr = self.fetch_abs_y_address();
+                self.sta(addr);
+                5
+            }
+
             // TXS
             0x9a => {
                 self.txs();
                 2
+            }
+
+            // STA abs,X
+            0x9d => {
+                let addr = self.fetch_abs_x_address();
+                self.sta(addr);
+                5
             }
 
             // LDY #
@@ -1576,15 +1667,21 @@ impl Cpu {
     }
 
     // Store Accumulator in Memory
-    fn sta(&mut self) {
+    fn sta(&mut self, addr: u16) {
+        let value = self.r.a;
+        self.mmu.write(addr, value);
     }
 
     // Store Index X in Memory
-    fn stx(&mut self) {
+    fn stx(&mut self, addr: u16) {
+        let value = self.r.x;
+        self.mmu.write(addr, value);
     }
 
     // Store Index Y in Memory
-    fn sty(&mut self) {
+    fn sty(&mut self, addr: u16) {
+        let value = self.r.y;
+        self.mmu.write(addr, value);
     }
 
     // Transfer Accumulator to Index X
@@ -2403,6 +2500,36 @@ mod tests {
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
         assert!(cpu.r.pc == 0);
+    }
+
+    #[test]
+    fn cpu_sta() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0xea;
+        cpu.r.x = 0x1f;
+        cpu.r.y = 0x80;
+        cpu.sta(0x100);
+        assert!(cpu.mmu.read(0x100) == 0xea);
+    }
+
+    #[test]
+    fn cpu_stx() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0xea;
+        cpu.r.x = 0x1f;
+        cpu.r.y = 0x80;
+        cpu.stx(0x100);
+        assert!(cpu.mmu.read(0x100) == 0x1f);
+    }
+
+    #[test]
+    fn cpu_sty() {
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0xea;
+        cpu.r.x = 0x1f;
+        cpu.r.y = 0x80;
+        cpu.sty(0x100);
+        assert!(cpu.mmu.read(0x100) == 0x80);
     }
 
     #[test]
