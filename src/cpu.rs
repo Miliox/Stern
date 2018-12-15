@@ -1,5 +1,8 @@
 use std::fmt;
 
+#[path = "mmu.rs"]
+mod mmu;
+
 /// StatusFlags contain the flags that are stored in the Status Register (sr).
 #[allow(dead_code)]
 pub mod status_flags {
@@ -69,27 +72,27 @@ impl fmt::Debug for Registers {
 pub struct Cpu {
     r : Registers,
     clock : u64,
-    room: Vec<u8>
+    mmu: mmu::Mmu
 }
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "r:({:?}) clock:{:?} room_size:{:?}", self.r, self.clock, self.room.len())
+        write!(f, "r:({:?}) clock:{:?} mmu:{:?}", self.r, self.clock, self.mmu)
     }
 }
 
 #[allow(dead_code)]
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { r: Registers::new(), clock: 0, room: Vec::new()}
+        Cpu { r: Registers::new(), clock: 0, mmu: mmu::Mmu::new()}
     }
 
-    pub fn load(&mut self, room: Vec<u8>) {
-        self.room = room;
+    pub fn load(&mut self, room: &[u8]) {
+        self.mmu.load(&room);
     }
 
     pub fn step(&mut self) {
-        let opcode = self.room[self.r.pc as usize];
+        let opcode = self.mmu.read(self.r.pc);
         self.r.pc = self.r.pc.wrapping_add(1);
 
         let elapsed = match opcode {
@@ -800,7 +803,8 @@ impl Cpu {
             // DEC zpg
             0xc6 => {
                 let addr = self.fetch_zpg_address();
-                self.room[addr] = self.dec(self.room[addr]);
+                let value = self.dec(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 5
             }
 
@@ -840,7 +844,8 @@ impl Cpu {
             // DEC abs
             0xce => {
                 let addr = self.fetch_abs_address();
-                self.room[addr] = self.dec(self.room[addr]);
+                let value = self.dec(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 3
             }
 
@@ -867,7 +872,8 @@ impl Cpu {
             // DEC zpg,X
             0xd6 => {
                 let addr = self.fetch_zpg_x_address();
-                self.room[addr] = self.dec(self.room[addr]);
+                let value = self.dec(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 6
             }
 
@@ -894,7 +900,8 @@ impl Cpu {
             // DEC abs,X
             0xde => {
                 let addr = self.fetch_abs_x_address();
-                self.room[addr] = self.dec(self.room[addr]);
+                let value = self.dec(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 7
             }
 
@@ -929,7 +936,8 @@ impl Cpu {
             // INC zpg
             0xe6 => {
                 let addr = self.fetch_zpg_address();
-                self.room[addr] = self.inc(self.room[addr]);
+                let value = self.inc(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 5
             }
 
@@ -962,7 +970,8 @@ impl Cpu {
             // INC abs
             0xee => {
                 let addr = self.fetch_abs_address();
-                self.room[addr] = self.inc(self.room[addr]);
+                let value = self.inc(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 6
             }
 
@@ -996,7 +1005,8 @@ impl Cpu {
             // INC zpg,X
             0xf6 => {
                 let addr = self.fetch_zpg_x_address();
-                self.room[addr] = self.inc(self.room[addr]);
+                let value = self.inc(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 6
             }
 
@@ -1023,7 +1033,8 @@ impl Cpu {
             // INC abs,X
             0xfe => {
                 let addr = self.fetch_abs_x_address();
-                self.room[addr] = self.inc(self.room[addr]);
+                let value = self.inc(self.mmu.read(addr));
+                self.mmu.write(addr, value);
                 7
             }
 
@@ -1035,45 +1046,45 @@ impl Cpu {
 
     /// Fetchs the next byte indexed by pc register and increment pc by one
     fn fetch(&mut self) -> u8 {
-        let b = self.room[self.r.pc as usize];
+        let b = self.mmu.read(self.r.pc);
         self.r.pc = self.r.pc.wrapping_add(1);
         b
     }
 
     // Fetchs the immediate address indexed by pc register and increment pc by two
-    fn fetch_address(&mut self) -> usize {
-        let ll = self.fetch() as usize;
-        let hh = self.fetch() as usize;
+    fn fetch_address(&mut self) -> u16 {
+        let ll = self.fetch() as u16;
+        let hh = self.fetch() as u16;
         (hh << 8) + ll
     }
 
     // Fetchs the absolute address from the program and resolve his memory value
     fn fetch_abs(&mut self) -> u8 {
         let addr = self.fetch_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetchs the absolute address + x from the program and resolve his memory value
     fn fetch_abs_x(&mut self) -> u8 {
         let addr = self.fetch_abs_x_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetchs the absolute address + y from the program and resolve his memory value
     fn fetch_abs_y(&mut self) -> u8 {
         let addr = self.fetch_abs_y_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetch the absolute address
-    fn fetch_abs_address(&mut self) -> usize {
+    fn fetch_abs_address(&mut self) -> u16 {
         self.fetch_address()
     }
 
     // Fetch the absolute address + x
-    fn fetch_abs_x_address(&mut self) -> usize {
+    fn fetch_abs_x_address(&mut self) -> u16 {
         let addr = self.fetch_address();
-        let offset = self.r.x as usize;
+        let offset = self.r.x as u16;
 
         if addr & 0xff + offset > 0xff {
             self.clock += 1;
@@ -1083,9 +1094,9 @@ impl Cpu {
     }
 
     // Fetch the absolute address + y
-    fn fetch_abs_y_address(&mut self) -> usize {
+    fn fetch_abs_y_address(&mut self) -> u16 {
         let addr = self.fetch_address();
-        let offset = self.r.y as usize;
+        let offset = self.r.y as u16;
 
         if addr & 0xff + offset > 0xff {
             self.clock += 1;
@@ -1097,60 +1108,60 @@ impl Cpu {
     // Fetchs the zeropage address from the program and resolve his memory value
     fn fetch_zpg(&mut self) -> u8 {
         let addr = self.fetch_zpg_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetchs the zeropage address + x from the program and resolve his memory value
     fn fetch_zpg_x(&mut self) -> u8 {
         let addr = self.fetch_zpg_x_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetchs the zeropage address + y from the program and resolve his memory value
     fn fetch_zpg_y(&mut self) -> u8 {
         let addr = self.fetch_zpg_y_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetch zeropage address
-    fn fetch_zpg_address(&mut self) -> usize {
-        self.fetch() as usize
+    fn fetch_zpg_address(&mut self) -> u16 {
+        self.fetch() as u16
     }
 
     // Fetch zeropage address + x from the program
-    fn fetch_zpg_x_address(&mut self) -> usize {
-        self.fetch_zpg_address() + self.r.x as usize
+    fn fetch_zpg_x_address(&mut self) -> u16 {
+        self.fetch_zpg_address() + self.r.x as u16
     }
 
     // Fetch zeropage address + y from the program
-    fn fetch_zpg_y_address(&mut self) -> usize {
-        self.fetch_zpg_address() + self.r.y as usize
+    fn fetch_zpg_y_address(&mut self) -> u16 {
+        self.fetch_zpg_address() + self.r.y as u16
     }
 
     // Fetchs an indirect address in zero page + x and resolve his memory value
     fn fetch_x_ind(&mut self) -> u8 {
         let addr = self.fetch_x_ind_address();
-        self.room[addr]
+        self.mmu.read(addr)
     }
 
     // Fetchs an indirect address in zero page + x
-    fn fetch_x_ind_address(&mut self) -> usize {
-        let zpg_addr = self.fetch_zpg_address() + (self.r.x as usize);
+    fn fetch_x_ind_address(&mut self) -> u16 {
+        let zpg_addr = self.fetch_zpg_address() + (self.r.x as u16);
         self.read_address(zpg_addr & 0xff)
     }
 
     // Fetchs an indirect address in zero page, then increment by y and resolve his memory value
     fn fetch_ind_y(&mut self) -> u8 {
-        let zpg_addr = self.fetch() as usize;
-        let addr = self.read_address(zpg_addr) + (self.r.y as usize);
-        self.room[addr]
+        let zpg_addr = self.fetch() as u16;
+        let addr = self.read_address(zpg_addr) + (self.r.y as u16);
+        self.mmu.read(addr)
     }
 
     // Fetchs an indirect address in zero page, then increment by y
-    fn fetch_ind_y_address(&mut self) -> usize {
-        let zpg_addr = self.fetch() as usize;
+    fn fetch_ind_y_address(&mut self) -> u16 {
+        let zpg_addr = self.fetch() as u16;
         let addr = self.read_address(zpg_addr);
-        let offset = self.r.y as usize;
+        let offset = self.r.y as u16;
 
         if (addr & 0xff) + offset > 0xff {
             self.clock += 1;
@@ -1160,9 +1171,9 @@ impl Cpu {
     }
 
     // Read the address from memory by a given memory address
-    fn read_address(&mut self, addr: usize) -> usize {
-        let ll = self.room[addr] as usize;
-        let hh = self.room[addr + 1] as usize;
+    fn read_address(&mut self, addr: u16) -> u16 {
+        let ll = self.mmu.read(addr) as u16;
+        let hh = self.mmu.read(addr + 1) as u16;
         (hh << 8) + ll
     }
 
@@ -1187,14 +1198,14 @@ impl Cpu {
 
     // Push on Stack
     fn stack_push(&mut self, value: u8) {
-        self.room[0x100 + self.r.sp as usize] = value;
+        self.mmu.write(0x100 + self.r.sp as u16, value);
         self.r.sp = self.r.sp.wrapping_sub(1);
     }
 
     // Pull from Stack
     fn stack_pull(&mut self) -> u8 {
         self.r.sp = self.r.sp.wrapping_add(1);
-        self.room[0x100 + self.r.sp as usize]
+        self.mmu.read(0x100 + self.r.sp as u16)
     }
 
     // Add Memory to Accumulator with Carry
@@ -1402,7 +1413,7 @@ impl Cpu {
     }
 
     // Jump to New Location
-    fn jmp(&mut self, addr: usize) {
+    fn jmp(&mut self, addr: u16) {
         self.r.pc = addr as u16;
     }
 
@@ -1622,7 +1633,7 @@ mod tests {
     #[test]
     fn cpu_fetch_sequence() {
         let mut cpu = Cpu::new();
-        cpu.load([0x00, 0x01, 0x02, 0x03, 0x4, 0x5].to_vec());
+        cpu.load(&[0x00, 0x01, 0x02, 0x03, 0x4, 0x5]);
         assert!(cpu.r.pc == 0x00);
 
         assert!(cpu.fetch() == 0x00);
@@ -2399,9 +2410,11 @@ mod tests {
     #[test]
     fn cpu_instruction_brk() {
         let mut cpu = Cpu::new();
-        cpu.load([0x00, 0x00, 0x00].to_vec());
+        cpu.load(&[0x00, 0x00, 0x00]);
+        cpu.mmu.write(0xfffe, 0x11);
+        cpu.mmu.write(0xffff, 0x99);
         cpu.step();
-        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.pc == 0x9911);
         assert!(cpu.r.sr == status_flags::BRK);
         assert!(cpu.clock == 7);
     }
@@ -2409,7 +2422,7 @@ mod tests {
     #[test]
     fn cpu_instruction_ora_immidiate() {
         let mut cpu = Cpu::new();
-        cpu.load([0x09, 0x00].to_vec());
+        cpu.load(&[0x09, 0x00]);
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0);
@@ -2421,7 +2434,7 @@ mod tests {
     fn cpu_instruction_ora_x_ind() {
         let mut cpu = Cpu::new();
         cpu.r.x = 1;
-        cpu.load([0x01, 0x01, 0x04, 0x00, 0b0011_1001].to_vec());
+        cpu.load(&[0x01, 0x01, 0x04, 0x00, 0b0011_1001]);
         cpu.step();
         // execution:
         //   offset = 0x01(op) + 0x01(x) => 0x02
@@ -2438,7 +2451,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b1001_0110;
         cpu.r.y = 1;
-        cpu.load([0x11, 0x02, 0x04, 0x00, 0x00, 0xff].to_vec());
+        cpu.load(&[0x11, 0x02, 0x04, 0x00, 0x00, 0xff]);
         cpu.step();
         // execution:
         //   offset = 0x02(op)
@@ -2454,7 +2467,7 @@ mod tests {
     fn cpu_instruction_ora_zpg() {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0110_0000;
-        cpu.load([0x05, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.load(&[0x05, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0b1111_0000);
@@ -2467,7 +2480,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0110_0000;
         cpu.r.x = 1;
-        cpu.load([0x15, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.load(&[0x15, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
         cpu.step();
         assert!(cpu.r.pc == 0x02);
         assert!(cpu.r.a == 0b0110_1111);
@@ -2479,7 +2492,7 @@ mod tests {
     fn cpu_instruction_ora_abs() {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0110_0000;
-        cpu.load([0x0d, 0x03, 0x00, 0b0000_1111].to_vec());
+        cpu.load(&[0x0d, 0x03, 0x00, 0b0000_1111]);
         cpu.step();
         assert!(cpu.r.pc == 0x03);
         assert!(cpu.r.a == 0b0110_1111);
@@ -2492,7 +2505,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0001_0000;
         cpu.r.x = 1;
-        cpu.load([0x1d, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.load(&[0x1d, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
         cpu.step();
         assert!(cpu.r.pc == 0x03);
         assert!(cpu.r.a == 0b0001_1111);
@@ -2505,7 +2518,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0001_0000;
         cpu.r.y = 1;
-        cpu.load([0x19, 0x03, 0x00, 0b1111_0000, 0b0000_1111].to_vec());
+        cpu.load(&[0x19, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
         cpu.step();
         assert!(cpu.r.pc == 0x03);
         assert!(cpu.r.a == 0b0001_1111);
@@ -2516,7 +2529,7 @@ mod tests {
     #[test]
     fn cpu_instruction_jmp_abs() {
         let mut cpu = Cpu::new();
-        cpu.load([0x4c, 0x21, 0x43].to_vec());
+        cpu.load(&[0x4c, 0x21, 0x43]);
         cpu.step();
         assert!(cpu.r.pc == 0x4321);
     }
@@ -2524,7 +2537,7 @@ mod tests {
     #[test]
     fn cpu_instruction_jmp_ind() {
         let mut cpu = Cpu::new();
-        cpu.load([0x6c, 0x03, 0x00, 0xef, 0xbe].to_vec());
+        cpu.load(&[0x6c, 0x03, 0x00, 0xef, 0xbe]);
         cpu.step();
         assert!(cpu.r.pc == 0xbeef);
     }
@@ -2539,13 +2552,13 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xff;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xfd);
         assert!(cpu.r.pc == 0xbeef);
-        assert!(cpu.room[0x1ff] == 0x00);
-        assert!(cpu.room[0x1fe] == 0x02);
+        assert!(cpu.mmu.read(0x1ff) == 0x00);
+        assert!(cpu.mmu.read(0x1fe) == 0x02);
     }
 
     #[test]
@@ -2558,11 +2571,11 @@ mod tests {
         cpu.r.a = 0x34;
         cpu.r.sr = 0x91;
         cpu.r.sp = 0xff;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xfe);
-        assert!(cpu.room[0x1ff] == 0x34);
+        assert!(cpu.mmu.read(0x1ff) == 0x34);
     }
 
     #[test]
@@ -2575,11 +2588,11 @@ mod tests {
         cpu.r.a = 0x34;
         cpu.r.sr = 0x91;
         cpu.r.sp = 0xff;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xfe);
-        assert!(cpu.room[0x1ff] == 0x91);
+        assert!(cpu.mmu.read(0x1ff) == 0x91);
     }
 
     #[test]
@@ -2591,12 +2604,12 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
         assert!(cpu.r.sr == 0);
-        assert!(cpu.room[0x1ff] == 0x39);
+        assert!(cpu.mmu.read(0x1ff) == 0x39);
     }
 
     #[test]
@@ -2608,12 +2621,12 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
         assert!(cpu.r.sr == status_flags::NEG);
-        assert!(cpu.room[0x1ff] == 0xab);
+        assert!(cpu.mmu.read(0x1ff) == 0xab);
     }
 
     #[test]
@@ -2625,12 +2638,12 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
         assert!(cpu.r.sr == status_flags::ZERO);
-        assert!(cpu.room[0x1ff] == 0x00);
+        assert!(cpu.mmu.read(0x1ff) == 0x00);
     }
 
     #[test]
@@ -2642,12 +2655,12 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
         assert!(cpu.r.sr == 0x91);
-        assert!(cpu.room[0x1ff] == 0x91);
+        assert!(cpu.mmu.read(0x1ff) == 0x91);
     }
 
     #[test]
@@ -2661,7 +2674,7 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfc;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
@@ -2679,7 +2692,7 @@ mod tests {
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfd;
-        cpu.load(room);
+        cpu.load(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
