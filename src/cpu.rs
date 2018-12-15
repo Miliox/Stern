@@ -1281,8 +1281,18 @@ impl Cpu {
 
     // Force Break
     fn brk(&mut self) {
-        self.r.pc += 1;
-        self.r.sr |= status_flags::BRK;
+        self.r.pc = self.r.pc.wrapping_add(1);
+        self.flag_set(status_flags::BRK);
+
+        let ret_addr = self.r.pc.wrapping_sub(1);
+        let ll = ret_addr as u8;
+        let hh = (ret_addr > 8) as u8;
+
+        self.stack_push(hh);
+        self.stack_push(ll);
+        self.stack_push(self.r.sr);
+
+        self.r.pc = self.read_address(0xfffe) as u16;
     }
 
     // Branch on Overflow Clear
