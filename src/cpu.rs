@@ -203,6 +203,12 @@ impl Cpu {
                 7
             }
 
+            // JSR
+            0x20 => {
+                self.jsr();
+                6
+            }
+
             // AND X,ind
             0x21 => {
                 let value = self.fetch_x_ind();
@@ -1344,6 +1350,19 @@ impl Cpu {
 
     // Jump to New Location Saving Return Address
     fn jsr(&mut self) {
+        let jmp_addr = self.fetch_abs_address();
+
+        let ret_addr = self.r.pc.wrapping_sub(1);
+        let ll = ret_addr as u8;
+        let hh = (ret_addr > 8) as u8;
+
+        self.room[0x100 + self.r.sp as usize] = hh;
+        self.r.sp = self.r.sp.wrapping_sub(1);
+
+        self.room[0x100 + self.r.sp as usize] = ll;
+        self.r.sp = self.r.sp.wrapping_sub(1);
+
+        self.r.pc = jmp_addr as u16;
     }
 
     // Load Accumulator with Memory
@@ -2436,5 +2455,24 @@ mod tests {
         cpu.load([0x6c, 0x03, 0x00, 0xef, 0xbe].to_vec());
         cpu.step();
         assert!(cpu.r.pc == 0xbeef);
+    }
+
+    #[test]
+    fn cpu_instruction_jsr() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x20;
+        room[0x01] = 0xef;
+        room[0x02] = 0xbe;
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xff;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xfd);
+        assert!(cpu.r.pc == 0xbeef);
+        assert!(cpu.room[0x1ff] == 0x00);
+        assert!(cpu.room[0x1fe] == 0x02);
     }
 }
