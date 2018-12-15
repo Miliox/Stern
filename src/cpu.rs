@@ -120,6 +120,12 @@ impl Cpu {
                 5
             }
 
+            // PHP
+            0x08 => {
+                self.php();
+                3
+            }
+
             // ORA #
             0x09 => {
                 let value = self.fetch();
@@ -237,6 +243,12 @@ impl Cpu {
                 5
             }
 
+            // PLP
+            0x28 => {
+                self.plp();
+                4
+            }
+
             // AND #
             0x29 => {
                 let value = self.fetch();
@@ -347,6 +359,12 @@ impl Cpu {
                 5
             }
 
+            // PHA
+            0x48 => {
+                self.pha();
+                3
+            }
+
             // EOR #
             0x49 => {
                 let value = self.fetch();
@@ -455,6 +473,12 @@ impl Cpu {
                 let value = self.fetch_zpg();
                 self.ror(value);
                 5
+            }
+
+            // PLA
+            0x68 => {
+                self.pla();
+                4
             }
 
             // ADC #
@@ -1402,18 +1426,28 @@ impl Cpu {
 
     // Push Accumulator on Stack
     fn pha(&mut self) {
+        self.room[0x100 + self.r.sp as usize] = self.r.a;
+        self.r.sp = self.r.sp.wrapping_sub(1);
     }
 
     // Push Processor Status on Stack
     fn php(&mut self) {
+        self.room[0x100 + self.r.sp as usize] = self.r.sr;
+        self.r.sp = self.r.sp.wrapping_sub(1);
     }
 
     // Pull Accumulator from Stack
     fn pla(&mut self) {
+        self.r.sp = self.r.sp.wrapping_add(1);
+        self.r.a = self.room[0x100 + self.r.sp as usize];
+        self.flag_set_if(status_flags::NEG,  self.r.a & 0x80 != 0);
+        self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Pull Processor Status from Stack
     fn plp(&mut self) {
+        self.r.sp = self.r.sp.wrapping_add(1);
+        self.r.sr = self.room[0x100 + self.r.sp as usize];
     }
 
     // Rotate One Bit Left (Memory or Accumulator)
@@ -2474,5 +2508,107 @@ mod tests {
         assert!(cpu.r.pc == 0xbeef);
         assert!(cpu.room[0x1ff] == 0x00);
         assert!(cpu.room[0x1fe] == 0x02);
+    }
+
+    #[test]
+    fn cpu_instruction_pha() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x48;
+
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x34;
+        cpu.r.sr = 0x91;
+        cpu.r.sp = 0xff;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xfe);
+        assert!(cpu.room[0x1ff] == 0x34);
+    }
+
+    #[test]
+    fn cpu_instruction_php() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x08;
+
+        let mut cpu = Cpu::new();
+        cpu.r.a = 0x34;
+        cpu.r.sr = 0x91;
+        cpu.r.sp = 0xff;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xfe);
+        assert!(cpu.room[0x1ff] == 0x91);
+    }
+
+    #[test]
+    fn cpu_instruction_pla_noflags() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x68;
+        room[0x1ff] = 0x39;
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xfe;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xff);
+        assert!(cpu.r.sr == 0);
+        assert!(cpu.room[0x1ff] == 0x39);
+    }
+
+    #[test]
+    fn cpu_instruction_pla_neg() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x68;
+        room[0x1ff] = 0xab;
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xfe;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xff);
+        assert!(cpu.r.sr == status_flags::NEG);
+        assert!(cpu.room[0x1ff] == 0xab);
+    }
+
+    #[test]
+    fn cpu_instruction_pla_zero() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x68;
+        room[0x1ff] = 0x00;
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xfe;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xff);
+        assert!(cpu.r.sr == status_flags::ZERO);
+        assert!(cpu.room[0x1ff] == 0x00);
+    }
+
+    #[test]
+    fn cpu_instruction_plp() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x28;
+        room[0x1ff] = 0x91;
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xfe;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xff);
+        assert!(cpu.r.sr == 0x91);
+        assert!(cpu.room[0x1ff] == 0x91);
     }
 }
