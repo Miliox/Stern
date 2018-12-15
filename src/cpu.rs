@@ -1173,6 +1173,18 @@ impl Cpu {
         self.r.sr &= !flag;
     }
 
+    // Push on Stack
+    fn stack_push(&mut self, value: u8) {
+        self.room[0x100 + self.r.sp as usize] = value;
+        self.r.sp = self.r.sp.wrapping_sub(1);
+    }
+
+    // Pull from Stack
+    fn stack_pull(&mut self) -> u8 {
+        self.r.sp = self.r.sp.wrapping_add(1);
+        self.room[0x100 + self.r.sp as usize]
+    }
+
     // Add Memory to Accumulator with Carry
     fn adc(&mut self, value: u8) {
         let mut result: u16 = self.r.a as u16 + value as u16;
@@ -1380,11 +1392,8 @@ impl Cpu {
         let ll = ret_addr as u8;
         let hh = (ret_addr > 8) as u8;
 
-        self.room[0x100 + self.r.sp as usize] = hh;
-        self.r.sp = self.r.sp.wrapping_sub(1);
-
-        self.room[0x100 + self.r.sp as usize] = ll;
-        self.r.sp = self.r.sp.wrapping_sub(1);
+        self.stack_push(hh);
+        self.stack_push(ll);
 
         self.r.pc = jmp_addr as u16;
     }
@@ -1426,28 +1435,25 @@ impl Cpu {
 
     // Push Accumulator on Stack
     fn pha(&mut self) {
-        self.room[0x100 + self.r.sp as usize] = self.r.a;
-        self.r.sp = self.r.sp.wrapping_sub(1);
+        self.stack_push(self.r.a);
     }
 
     // Push Processor Status on Stack
     fn php(&mut self) {
-        self.room[0x100 + self.r.sp as usize] = self.r.sr;
-        self.r.sp = self.r.sp.wrapping_sub(1);
+        self.stack_push(self.r.sr);
     }
 
     // Pull Accumulator from Stack
     fn pla(&mut self) {
-        self.r.sp = self.r.sp.wrapping_add(1);
-        self.r.a = self.room[0x100 + self.r.sp as usize];
+        self.r.a = self.stack_pull();
+
         self.flag_set_if(status_flags::NEG,  self.r.a & 0x80 != 0);
         self.flag_set_if(status_flags::ZERO, self.r.a == 0);
     }
 
     // Pull Processor Status from Stack
     fn plp(&mut self) {
-        self.r.sp = self.r.sp.wrapping_add(1);
-        self.r.sr = self.room[0x100 + self.r.sp as usize];
+        self.r.sr = self.stack_pull();
     }
 
     // Rotate One Bit Left (Memory or Accumulator)
