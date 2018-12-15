@@ -338,6 +338,12 @@ impl Cpu {
                 7
             }
 
+            // RTI
+            0x40 => {
+                self.rti();
+                6
+            }
+
             // EOR X,ind
             0x41 => {
                 let value = self.fetch_x_ind();
@@ -452,6 +458,12 @@ impl Cpu {
                 let value = self.fetch_abs_x();
                 self.lsr(value);
                 7
+            }
+
+            // RTS
+            0x60 => {
+                self.rts();
+                6
             }
 
             // ADC X,ind
@@ -1492,10 +1504,20 @@ impl Cpu {
 
     // Return from Interrupt
     fn rti(&mut self) {
+        self.r.sr = self.stack_pull();
+
+        let ll = self.stack_pull() as u16;
+        let hh = self.stack_pull() as u16;
+        self.r.pc = (hh << 8) + ll;
     }
 
     // Return from Subroutine
     fn rts(&mut self) {
+        let ll = self.stack_pull() as u16;
+        let hh = self.stack_pull() as u16;
+
+        self.r.pc = (hh << 8) + ll;
+        self.r.pc = self.r.pc.wrapping_add(1);
     }
 
     // Subtract Memory from Accumulator with Borrow
@@ -2626,5 +2648,41 @@ mod tests {
         assert!(cpu.r.sp == 0xff);
         assert!(cpu.r.sr == 0x91);
         assert!(cpu.room[0x1ff] == 0x91);
+    }
+
+    #[test]
+    fn cpu_instruction_rti() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x40;
+        room[0x1ff] = 0xbe; // PCH
+        room[0x1fe] = 0xef; // PCL
+        room[0x1fd] = 0x91; // SR
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xfc;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xff);
+        assert!(cpu.r.sr == 0x91);
+        assert!(cpu.r.pc == 0xbeef);
+    }
+
+    #[test]
+    fn cpu_instruction_rts() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(0x200, 0xff);
+        room[0x00] = 0x60;
+        room[0x1ff] = 0xbe; // PCH
+        room[0x1fe] = 0xee; // PCL
+
+        let mut cpu = Cpu::new();
+        cpu.r.sp = 0xfd;
+        cpu.load(room);
+        cpu.step();
+
+        assert!(cpu.r.sp == 0xff);
+        assert!(cpu.r.pc == 0xbeef);
     }
 }
