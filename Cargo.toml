@@ -8,3 +8,4 @@ publish = false
 readme = "README.md"
 
 [dependencies]
+sfml = "0.14.0"
