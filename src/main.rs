@@ -16,7 +16,7 @@ fn main() {
         println!("Size: {:?} bytes", room.len());
 
         let mut cpu = cpu::Cpu::new();
-        cpu.load(&room);
+        cpu.load_room(&room);
         println!("{:?}", cpu);
 
         cpu.step();

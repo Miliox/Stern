@@ -56,7 +56,7 @@ pub struct Registers {
 
 impl Registers {
     pub fn new() -> Registers {
-        Registers { a: 0, x: 0, y: 0, sr: status_flags::UNUSED, sp: 0, pc: 0 }
+        Registers { a: 0, x: 0, y: 0, sr: status_flags::UNUSED, sp: 0, pc: 0xf000 }
     }
 }
 
@@ -87,8 +87,8 @@ impl Cpu {
         Cpu { r: Registers::new(), clock: 0, mmu: mmu::Mmu::new()}
     }
 
-    pub fn load(&mut self, room: &[u8]) {
-        self.mmu.load(&room);
+    pub fn load_room(&mut self, room: &[u8]) {
+        self.mmu.load_room(&room);
     }
 
     pub fn step(&mut self) {
@@ -1221,12 +1221,12 @@ impl Cpu {
 
     // Fetch zeropage address + x from the program
     fn fetch_zpg_x_address(&mut self) -> u16 {
-        self.fetch_zpg_address() + self.r.x as u16
+        self.fetch_zpg_address().wrapping_add(self.r.x as u16)
     }
 
     // Fetch zeropage address + y from the program
     fn fetch_zpg_y_address(&mut self) -> u16 {
-        self.fetch_zpg_address() + self.r.y as u16
+        self.fetch_zpg_address().wrapping_add(self.r.y as u16)
     }
 
     // Fetchs an indirect address in zero page + x and resolve his memory value
@@ -1237,14 +1237,14 @@ impl Cpu {
 
     // Fetchs an indirect address in zero page + x
     fn fetch_x_ind_address(&mut self) -> u16 {
-        let zpg_addr = self.fetch_zpg_address() + (self.r.x as u16);
+        let zpg_addr = self.fetch_zpg_address().wrapping_add(self.r.x as u16);
         self.read_address(zpg_addr & 0xff)
     }
 
     // Fetchs an indirect address in zero page, then increment by y and resolve his memory value
     fn fetch_ind_y(&mut self) -> u8 {
         let zpg_addr = self.fetch() as u16;
-        let addr = self.read_address(zpg_addr) + (self.r.y as u16);
+        let addr = self.read_address(zpg_addr).wrapping_add(self.r.y as u16);
         self.mmu.read(addr)
     }
 
@@ -1517,7 +1517,7 @@ impl Cpu {
 
         let ret_addr = self.r.pc.wrapping_sub(1);
         let ll = ret_addr as u8;
-        let hh = (ret_addr > 8) as u8;
+        let hh = (ret_addr >> 8) as u8;
 
         self.stack_push(hh);
         self.stack_push(ll);
@@ -1732,34 +1732,44 @@ mod tests {
 
     #[test]
     fn cpu_fetch_sequence() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0;
+        room[1] = 1;
+        room[2] = 2;
+        room[3] = 3;
+        room[4] = 4;
+        room[5] = 5;
+
         let mut cpu = Cpu::new();
-        cpu.load(&[0x00, 0x01, 0x02, 0x03, 0x4, 0x5]);
-        assert!(cpu.r.pc == 0x00);
+
+        cpu.load_room(&room);
+        assert!(cpu.r.pc == 0xf000);
 
         assert!(cpu.fetch() == 0x00);
-        assert!(cpu.r.pc == 0x01);
+        assert!(cpu.r.pc == 0xf001);
 
         assert!(cpu.fetch() == 0x01);
-        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.pc == 0xf002);
 
         assert!(cpu.fetch() == 0x02);
-        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.pc == 0xf003);
 
         assert!(cpu.fetch() == 0x03);
-        assert!(cpu.r.pc == 0x04);
+        assert!(cpu.r.pc == 0xf004);
 
         assert!(cpu.fetch() == 0x04);
-        assert!(cpu.r.pc == 0x05);
+        assert!(cpu.r.pc == 0xf005);
 
         assert!(cpu.fetch() == 0x05);
-        assert!(cpu.r.pc == 0x06);
+        assert!(cpu.r.pc == 0xf006);
     }
 
     #[test]
     fn cpu_ora_zero() {
         let mut cpu = Cpu::new();
         cpu.ora(0x00);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
         assert!(cpu.r.a == 0);
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.clock == 0);
@@ -1770,7 +1780,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b1010_0101;
         cpu.ora(  0b1100_0011);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
         assert!(cpu.r.a == 0b1110_0111);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.clock == 0);
@@ -1908,7 +1918,7 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0010_0101;
         cpu.ora(  0b0100_0011);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
         assert!(cpu.r.a == 0b0110_0111);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 0);
@@ -2304,7 +2314,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2317,7 +2327,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2330,7 +2340,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2343,7 +2353,7 @@ mod tests {
         assert!(cpu.r.y == 0x41);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2356,7 +2366,7 @@ mod tests {
         assert!(cpu.r.y == 0xc4);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2369,7 +2379,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2382,7 +2392,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0x5e);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2395,7 +2405,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0xee);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2408,7 +2418,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2421,7 +2431,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2434,7 +2444,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2447,7 +2457,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::ZERO|status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2460,7 +2470,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0xa1);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2473,7 +2483,7 @@ mod tests {
         assert!(cpu.r.y == 0x3c);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2486,7 +2496,7 @@ mod tests {
         assert!(cpu.r.y == 0xbb);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2499,7 +2509,7 @@ mod tests {
         assert!(cpu.r.y == 0);
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.r.sp == 0);
-        assert!(cpu.r.pc == 0);
+        assert!(cpu.r.pc == 0xf000);
     }
 
     #[test]
@@ -2541,10 +2551,16 @@ mod tests {
 
     #[test]
     fn cpu_instruction_brk() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x00;
+        room[1] = 0x00;
+        room[2] = 0x00;
+        room[2046] = 0x11;
+        room[2047] = 0x99;
+
         let mut cpu = Cpu::new();
-        cpu.load(&[0x00, 0x00, 0x00]);
-        cpu.mmu.write(0xfffe, 0x11);
-        cpu.mmu.write(0xffff, 0x99);
+        cpu.load_room(&room);
         cpu.step();
         assert!(cpu.r.pc == 0x9911);
         assert!(cpu.r.sr == status_flags::BRK | status_flags::UNUSED);
@@ -2553,10 +2569,15 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_immidiate() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x09;
+        room[1] = 0x00;
+
         let mut cpu = Cpu::new();
-        cpu.load(&[0x09, 0x00]);
+        cpu.load_room(&room);
         cpu.step();
-        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.pc == 0xf002);
         assert!(cpu.r.a == 0);
         assert!(cpu.r.sr == status_flags::ZERO | status_flags::UNUSED);
         assert!(cpu.clock == 2);
@@ -2564,15 +2585,25 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_x_ind() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x01;
+        room[1] = 0x81;
+        room[2] = 0x00;
+        room[3] = 0x00;
+        room[4] = 0b0011_1001;
+
         let mut cpu = Cpu::new();
         cpu.r.x = 1;
-        cpu.load(&[0x01, 0x01, 0x04, 0x00, 0b0011_1001]);
+        cpu.mmu.write(0x82, 0x04);
+        cpu.mmu.write(0x83, 0xf0);
+        cpu.load_room(&room);
         cpu.step();
         // execution:
         //   offset = 0x01(op) + 0x01(x) => 0x02
         //   mem[offset] = 0x0004
         //   value[mem[offset]] => 0b0011_1001
-        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.pc == 0xf002);
         assert!(cpu.r.a == 0b0011_1001);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 6);
@@ -2580,16 +2611,25 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_ind_y() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x11;
+        room[1] = 0x02;
+        room[2] = 0x04;
+        room[3] = 0xf0;
+        room[4] = 0x00;
+        room[5] = 0xff;
+
         let mut cpu = Cpu::new();
         cpu.r.a = 0b1001_0110;
         cpu.r.y = 1;
-        cpu.load(&[0x11, 0x02, 0x04, 0x00, 0x00, 0xff]);
+        cpu.load_room(&room);
         cpu.step();
         // execution:
         //   offset = 0x02(op)
         //   mem[offset] = 0x0004
         //   value[mem[offset] + 0x01(x)] = 0xff
-        assert!(cpu.r.pc == 0x02);
+        assert!(cpu.r.pc == 0xf002);
         assert!(cpu.r.a == 0xff);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.clock == 5);
@@ -2597,11 +2637,20 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_zpg() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x05;
+        room[1] = 0x80;
+
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0110_0000;
-        cpu.load(&[0x05, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
+        cpu.mmu.write(0x80, 0b1111_0000);
+        cpu.mmu.write(0x81, 0b0000_1111);
+
+        cpu.load_room(&room);
         cpu.step();
-        assert!(cpu.r.pc == 0x02);
+
+        assert!(cpu.r.pc == 0xf002);
         assert!(cpu.r.a == 0b1111_0000);
         assert!(cpu.r.sr == status_flags::NEG | status_flags::UNUSED);
         assert!(cpu.clock == 3);
@@ -2609,24 +2658,39 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_zpg_x() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x15;
+        room[1] = 0x80;
+
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0110_0000;
-        cpu.r.x = 1;
-        cpu.load(&[0x15, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
+        cpu.r.x = 3;
+        cpu.mmu.write(0x83, 0b1111_0000);
+        cpu.mmu.write(0x84, 0b0000_1111);
+
+        cpu.load_room(&room);
         cpu.step();
-        assert!(cpu.r.pc == 0x02);
-        assert!(cpu.r.a == 0b0110_1111);
-        assert!(cpu.r.sr == status_flags::UNUSED);
+        assert!(cpu.r.pc == 0xf002);
+        assert!(cpu.r.a == 0b1111_0000);
+        assert!(cpu.r.sr == status_flags::UNUSED | status_flags::NEG);
         assert!(cpu.clock == 4);
     }
 
     #[test]
     fn cpu_instruction_ora_abs() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x0d;
+        room[1] = 0x03;
+        room[2] = 0xf0;
+        room[3] = 0b0000_1111;
+
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0110_0000;
-        cpu.load(&[0x0d, 0x03, 0x00, 0b0000_1111]);
+        cpu.load_room(&room);
         cpu.step();
-        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.pc == 0xf003);
         assert!(cpu.r.a == 0b0110_1111);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
@@ -2634,12 +2698,20 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_abs_x() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x1d;
+        room[1] = 0x03;
+        room[2] = 0xf0;
+        room[3] = 0b1111_0000;
+        room[4] = 0b0000_1111;
+
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0001_0000;
         cpu.r.x = 1;
-        cpu.load(&[0x1d, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
+        cpu.load_room(&room);
         cpu.step();
-        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.pc == 0xf003);
         assert!(cpu.r.a == 0b0001_1111);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
@@ -2647,12 +2719,20 @@ mod tests {
 
     #[test]
     fn cpu_instruction_ora_abs_y() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x19;
+        room[1] = 0x03;
+        room[2] = 0xf0;
+        room[3] = 0b1111_0000;
+        room[4] = 0b0000_1111;
+
         let mut cpu = Cpu::new();
         cpu.r.a = 0b0001_0000;
         cpu.r.y = 1;
-        cpu.load(&[0x19, 0x03, 0x00, 0b1111_0000, 0b0000_1111]);
+        cpu.load_room(&room);
         cpu.step();
-        assert!(cpu.r.pc == 0x03);
+        assert!(cpu.r.pc == 0xf003);
         assert!(cpu.r.a == 0b0001_1111);
         assert!(cpu.r.sr == status_flags::UNUSED);
         assert!(cpu.clock == 4);
@@ -2660,16 +2740,30 @@ mod tests {
 
     #[test]
     fn cpu_instruction_jmp_abs() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x4c;
+        room[1] = 0x21;
+        room[2] = 0x43;
+
         let mut cpu = Cpu::new();
-        cpu.load(&[0x4c, 0x21, 0x43]);
+        cpu.load_room(&room);
         cpu.step();
         assert!(cpu.r.pc == 0x4321);
     }
 
     #[test]
     fn cpu_instruction_jmp_ind() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0] = 0x6c;
+        room[1] = 0x03;
+        room[2] = 0xf0;
+        room[3] = 0xef;
+        room[4] = 0xbe;
+
         let mut cpu = Cpu::new();
-        cpu.load(&[0x6c, 0x03, 0x00, 0xef, 0xbe]);
+        cpu.load_room(&room);
         cpu.step();
         assert!(cpu.r.pc == 0xbeef);
     }
@@ -2677,33 +2771,34 @@ mod tests {
     #[test]
     fn cpu_instruction_jsr() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
-        room[0x00] = 0x20;
-        room[0x01] = 0xef;
-        room[0x02] = 0xbe;
+        room.resize(2048, 0xff);
+        room[0] = 0x20;
+        room[1] = 0xef;
+        room[2] = 0xbe;
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xff;
-        cpu.load(&room);
+
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xfd);
         assert!(cpu.r.pc == 0xbeef);
-        assert!(cpu.mmu.read(0x1ff) == 0x00);
+        assert!(cpu.mmu.read(0x1ff) == 0xf0);
         assert!(cpu.mmu.read(0x1fe) == 0x02);
     }
 
     #[test]
     fn cpu_instruction_pha() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x48;
 
         let mut cpu = Cpu::new();
         cpu.r.a = 0x34;
         cpu.r.sr = 0x91;
         cpu.r.sp = 0xff;
-        cpu.load(&room);
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xfe);
@@ -2713,14 +2808,14 @@ mod tests {
     #[test]
     fn cpu_instruction_php() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x08;
 
         let mut cpu = Cpu::new();
         cpu.r.a = 0x34;
         cpu.r.sr = 0x91;
         cpu.r.sp = 0xff;
-        cpu.load(&room);
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xfe);
@@ -2730,13 +2825,14 @@ mod tests {
     #[test]
     fn cpu_instruction_pla_noflags() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x68;
-        room[0x1ff] = 0x39;
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(&room);
+        cpu.mmu.write(0x1ff, 0x39);
+
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
@@ -2747,13 +2843,13 @@ mod tests {
     #[test]
     fn cpu_instruction_pla_neg() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x68;
-        room[0x1ff] = 0xab;
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(&room);
+        cpu.mmu.write(0x1ff, 0xab);
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
@@ -2764,13 +2860,13 @@ mod tests {
     #[test]
     fn cpu_instruction_pla_zero() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x68;
-        room[0x1ff] = 0x00;
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(&room);
+        cpu.mmu.write(0x1ff, 0);
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
@@ -2781,13 +2877,13 @@ mod tests {
     #[test]
     fn cpu_instruction_plp() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x28;
-        room[0x1ff] = 0x91;
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfe;
-        cpu.load(&room);
+        cpu.mmu.write(0x1ff, 0x91);
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
@@ -2798,15 +2894,15 @@ mod tests {
     #[test]
     fn cpu_instruction_rti() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x40;
-        room[0x1ff] = 0xbe; // PCH
-        room[0x1fe] = 0xef; // PCL
-        room[0x1fd] = 0x91; // SR
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfc;
-        cpu.load(&room);
+        cpu.mmu.write(0x1ff, 0xbe); // PCH
+        cpu.mmu.write(0x1fe, 0xef); // PCL
+        cpu.mmu.write(0x1fd, 0x91); // SR
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
@@ -2817,14 +2913,16 @@ mod tests {
     #[test]
     fn cpu_instruction_rts() {
         let mut room : Vec<u8> = Vec::new();
-        room.resize(0x200, 0xff);
+        room.resize(2048, 0xff);
         room[0x00] = 0x60;
         room[0x1ff] = 0xbe; // PCH
         room[0x1fe] = 0xee; // PCL
 
         let mut cpu = Cpu::new();
         cpu.r.sp = 0xfd;
-        cpu.load(&room);
+        cpu.mmu.write(0x1ff, 0xbe); // PCH
+        cpu.mmu.write(0x1fe, 0xee); // PCL
+        cpu.load_room(&room);
         cpu.step();
 
         assert!(cpu.r.sp == 0xff);
