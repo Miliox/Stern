@@ -19,8 +19,10 @@ fn main() {
         cpu.load_room(&room);
         println!("{:?}", cpu);
 
-        cpu.step();
-        println!("{:?}", cpu);
+        loop {
+            cpu.step();
+            println!("{:?}", cpu);
+        }
     }
 
 }
