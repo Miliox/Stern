@@ -71,8 +71,8 @@ impl fmt::Debug for Registers {
 #[allow(dead_code)]
 pub struct Cpu {
     r : Registers,
-    clock : u64,
-    mmu: mmu::Mmu
+    mmu: mmu::Mmu,
+    pub clock : u64,
 }
 
 impl fmt::Debug for Cpu {
