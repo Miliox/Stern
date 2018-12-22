@@ -50,29 +50,37 @@ impl Emulator {
                 self.cpu.clock -= CPU_TICKS_PER_FRAME;
 
                 let busy_duration = time::Instant::now() - beg_frame;
-                let sleep_duration = FRAME_DURATION - busy_duration - oversleep;
 
-                // The current processors are much faster than the original 6507, so
-                // to try match the speed we put the thread to sleep lot!
-                thread::sleep(sleep_duration);
+                oversleep = match FRAME_DURATION.checked_sub(busy_duration + oversleep) {
+                    Some(sleep_duration) => {
+                        // The modern cpus are ridiculously faster than the 6507.
+                        // So to emulate the speed original the process has to sleep a lot!
+                        thread::sleep(sleep_duration);
 
-                let end_frame = time::Instant::now();
-                let frame_duration = end_frame - beg_frame;
-                beg_frame = end_frame;
+                        let end_frame = time::Instant::now();
+                        let frame_duration = end_frame - beg_frame;
+                        beg_frame = end_frame;
 
-                // Sleep is not a precise function, it only guaratee that the thread will sleep
-                // for at least the given time and awake as soon as possible. But the accumulate
-                // difference will slowdown the produced frame rate.
-                //
-                // So an ammortization is necessary to bring the frame rate as close as possible
-                // to the target one that is done by compensating the over time that the thread
-                // slept on the next frame.
-                oversleep = frame_duration - (busy_duration + sleep_duration);
+                        // Sleep is not precise, it always takes a bit longer that the specified
+                        // duration. This slowdown the produced frame rate overtime.
+                        //
+                        // So an ammortization is necessary to bring the frame rate up.
+                        // This is done on the next frame.
+                        let oversleep = frame_duration - (busy_duration + sleep_duration);
 
-                //println!("{}\t{}\t{}",
-                //    frame_duration.subsec_nanos(),
-                //    oversleep.subsec_nanos(),
-                //    FRAME_DURATION.subsec_nanos());
+                        // println!("{}.{:0>9}\t{}.{:0>9}\t{}.{:0>9}\t{}.{:0>9}\t{}.{:0>9}",
+                        //    frame_duration.as_secs(), frame_duration.subsec_nanos(),
+                        //    busy_duration.as_secs(), busy_duration.subsec_nanos(),
+                        //    sleep_duration.as_secs(), sleep_duration.subsec_nanos(),
+                        //    oversleep.as_secs(), oversleep.subsec_nanos(),
+                        //    FRAME_DURATION.as_secs(), FRAME_DURATION.subsec_nanos());
+
+                        oversleep
+                    }
+                    None => ZERO_DURATION
+                }
+
+
             }
         }
     } 
