@@ -205,3 +205,81 @@ impl Mmu {
         }
     }
 }
+
+
+pub mod special_address {
+    // TIA - WRITE ADDRESS SUMMARY (Write only)
+    pub const VSYNC  : u16 = 0x00;
+    pub const VBLANK : u16 = 0x01;
+    pub const WSYNC  : u16 = 0x02;
+    pub const RSYNC  : u16 = 0x03;
+    pub const NUSIZ0 : u16 = 0x04;
+    pub const NUSIZ1 : u16 = 0x05;
+    pub const COLUP0 : u16 = 0x06;
+    pub const COLUP1 : u16 = 0x07;
+    pub const COLUPF : u16 = 0x08;
+    pub const COLUBK : u16 = 0x09;
+    pub const CTRLPF : u16 = 0x0a;
+    pub const REFP0  : u16 = 0x0b;
+    pub const REFP1  : u16 = 0x0c;
+    pub const PF0    : u16 = 0x0d;
+    pub const PF1    : u16 = 0x0e;
+    pub const PF2    : u16 = 0x0f;
+    pub const RESP0  : u16 = 0x10;
+    pub const RESP1  : u16 = 0x11;
+    pub const RESM0  : u16 = 0x12;
+    pub const RESM1  : u16 = 0x13;
+    pub const RESBL  : u16 = 0x14;
+    pub const AUDC0  : u16 = 0x15;
+    pub const AUDC1  : u16 = 0x16;
+    pub const AUDF0  : u16 = 0x17;
+    pub const AUDF1  : u16 = 0x18;
+    pub const AUDV0  : u16 = 0x19;
+    pub const AUDV1  : u16 = 0x1a;
+    pub const GRP0   : u16 = 0x1b;
+    pub const GRP1   : u16 = 0x1c;
+    pub const ENAM0  : u16 = 0x1d;
+    pub const ENAM1  : u16 = 0x1e;
+    pub const ENABL  : u16 = 0x1f;
+    pub const HMP0   : u16 = 0x20;
+    pub const HMP1   : u16 = 0x21;
+    pub const HMM0   : u16 = 0x22;
+    pub const HMM1   : u16 = 0x23;
+    pub const HMBL   : u16 = 0x24;
+    pub const VDELP0 : u16 = 0x25;
+    pub const VDELP1 : u16 = 0x26;
+    pub const VDELBL : u16 = 0x27;
+    pub const RESMP0 : u16 = 0x28;
+    pub const RESMP1 : u16 = 0x29;
+    pub const HMOVE  : u16 = 0x2a;
+    pub const HMCLR  : u16 = 0x2b;
+    pub const CXCLR  : u16 = 0x2c;
+
+    // TIA - READ ADDRESS SUMMARY (Read only)
+    pub const CXM0P  : u16 = 0x30;
+    pub const CXM1P  : u16 = 0x31;
+    pub const CXP0FB : u16 = 0x32;
+    pub const CXP1FB : u16 = 0x33;
+    pub const CXM0FB : u16 = 0x34;
+    pub const CXM1FB : u16 = 0x35;
+    pub const CXBLPF : u16 = 0x36;
+    pub const CXPPMM : u16 = 0x37;
+    pub const INPT0  : u16 = 0x38;
+    pub const INPT1  : u16 = 0x39;
+    pub const INPT2  : u16 = 0x3a;
+    pub const INPT3  : u16 = 0x3b;
+    pub const INPT4  : u16 = 0x3c;
+    pub const INPT5  : u16 = 0x3d;
+
+    // PIA 6532 - RAM, Switches, and Timer (Read/Write)
+    pub const SWCHA  : u16 = 0x280;
+    pub const SWACNT : u16 = 0x281;
+    pub const SWCHB  : u16 = 0x282;
+    pub const SWBCNT : u16 = 0x283;
+    pub const INTIM  : u16 = 0x284;
+    pub const INSTAT : u16 = 0x285;
+    pub const TIM1T  : u16 = 0x294;
+    pub const TIM8T  : u16 = 0x295;
+    pub const TIM64T : u16 = 0x296;
+    pub const T1024T : u16 = 0x297;
+}
