@@ -4,6 +4,7 @@ use std::{thread, time};
 
 use crate::cpu::Cpu;
 use crate::mmu::Mmu;
+use crate::debugger::Debugger;
 
 const FRAME_RATE : u64 = 60;
 const FRAME_DURATION : time::Duration = time::Duration::from_nanos(1_000_000_000 / FRAME_RATE);
@@ -17,7 +18,8 @@ const CPU_TICKS_PER_FRAME      : u64 = CPU_TICKS_PER_SECOND / FRAME_RATE;
 #[allow(dead_code)]
 pub struct Emulator {
     cpu: Cpu,
-    mmu: Mmu
+    mmu: Mmu,
+    debugger: Debugger,
 }
 
 #[allow(dead_code)]
@@ -25,7 +27,8 @@ impl Emulator {
     pub fn new() -> Emulator {
         Emulator {
             cpu: Cpu::new(),
-            mmu: Mmu::new()
+            mmu: Mmu::new(),
+            debugger: Debugger::new()
         }
     }
 
@@ -48,6 +51,8 @@ impl Emulator {
             // Match emulator speed to real 6507
             if self.cpu.clock >= CPU_TICKS_PER_FRAME {
                 self.cpu.clock -= CPU_TICKS_PER_FRAME;
+
+                self.debugger.refresh();
 
                 let busy_duration = time::Instant::now() - beg_frame;
 
@@ -83,5 +88,5 @@ impl Emulator {
 
             }
         }
-    } 
+    }
 }
