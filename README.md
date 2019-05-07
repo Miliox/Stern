@@ -12,4 +12,7 @@ Atari 2600 Emulator Written In Rust
 ```
 # OSX
 brew install sfml csfml
+
+# Linux (Debian)
+sudo apt install libsfml-dev libcsfml-dev
 ```
