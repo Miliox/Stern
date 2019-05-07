@@ -52,7 +52,7 @@ impl Emulator {
             if self.cpu.clock >= CPU_TICKS_PER_FRAME {
                 self.cpu.clock -= CPU_TICKS_PER_FRAME;
 
-                self.debugger.refresh();
+                self.debugger.refresh(&self.cpu);
 
                 let busy_duration = time::Instant::now() - beg_frame;
 

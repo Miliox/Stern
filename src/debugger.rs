@@ -4,28 +4,36 @@
 // Distributed under terms of the MIT license.
 //
 use std::process;
-use sfml::graphics::{Color, RenderTarget, RenderWindow};
+use sfml::graphics::{Color, Font, RenderTarget, RenderWindow, Text};
 use sfml::window::{Event, Key, Style};
 
+use crate::cpu::Cpu;
+
 pub struct Debugger {
+    font: Font,
     window: RenderWindow,
 }
 
 impl Debugger {
     pub fn new() -> Debugger {
         Debugger {
-            window: RenderWindow::new((800, 600), "Debugger", Style::CLOSE, &Default::default())
+            font: Font::from_file("res/arizone-unicase.ttf").unwrap(),
+            window: RenderWindow::new((1200, 960), "Debugger", Style::CLOSE, &Default::default())
         }
     }
 
-    pub fn refresh(&mut self) {
+    pub fn refresh(&mut self, cpu: &Cpu) {
         while let Some(event) = self.window.poll_event() {
             match event {
                 Event::Closed | Event::KeyPressed { code: Key::Escape, .. } => process::exit(0),
                 _ => {}
             }
         }
+        let mut text = Text::new(&format!("{:?}", cpu), &self.font, 18);
+        text.set_fill_color(&Color::BLACK);
+
         self.window.clear(&Color::WHITE);
+        self.window.draw(&text);
         self.window.display();
     }
 }
