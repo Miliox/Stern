@@ -9,3 +9,4 @@ readme = "README.md"
 
 [dependencies]
 sfml = "0.14.0"
+strfmt = "0.1.6"

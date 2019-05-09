@@ -1,6 +1,10 @@
-use std::fmt;
-
+extern crate strfmt;
 use crate::mmu::Mmu;
+
+use std::fmt;
+use strfmt::strfmt;
+use std::collections::HashMap;
+
 
 /// StatusFlags contain the flags that are stored in the Status Register (sr).
 #[allow(dead_code)]
@@ -69,7 +73,7 @@ impl fmt::Debug for Registers {
 /// Cpu
 #[allow(dead_code)]
 pub struct Cpu {
-    r : Registers,
+    pub r : Registers,
     pub clock : u64,
 }
 
@@ -83,6 +87,21 @@ impl fmt::Debug for Cpu {
 impl Cpu {
     pub fn new() -> Cpu {
         Cpu { r: Registers::new(), clock: 0 }
+    }
+
+    pub fn disasm(&self, mmu: &Mmu, count: u32) -> String {
+        let mut asm: Vec<String> = Vec::new();
+        let mut pc = self.r.pc;
+        for _ in 0..count {
+            let opcode = mmu.read(pc);
+            let mut vars = HashMap::new();
+            vars.insert("pc".to_string(), format!("{:04x}:", pc));
+            vars.insert("i".to_string(), format!("{:02x}", mmu.read(pc + 1 as u16)));
+            vars.insert("j".to_string(), format!("{:02x}", mmu.read(pc + 2 as u16)));
+            asm.push(strfmt(ISA[opcode as usize].0, &vars).unwrap());
+            pc = pc + ISA[opcode as usize].2 as u16;
+        }
+        asm.join("\n")
     }
 
     pub fn step(&mut self, mmu: &mut Mmu) {
@@ -2975,4 +2994,363 @@ mod tests {
         assert!(cpu.r.sp == 0xff);
         assert!(cpu.r.pc == 0xbeef);
     }
+
+    #[test]
+    fn cpu_asm_single_line() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0x00] = 0x00;
+
+        let mut mmu = Mmu::new();
+        mmu.load_room(&room);
+
+        let cpu = Cpu::new();
+        assert_eq!(cpu.disasm(&mut mmu, 1), "f000: BRK");
+    }
+
+    #[test]
+    fn cpu_asm_multi_line() {
+        let mut room : Vec<u8> = Vec::new();
+        room.resize(2048, 0xff);
+        room[0x00] = 0x28;
+        room[0x01] = 0xbe;
+        room[0x02] = 0xef;
+        room[0x03] = 0x2a;
+        room[0x04] = 0x13;
+        room[0x05] = 0xea;
+
+        let mut mmu = Mmu::new();
+        mmu.load_room(&room);
+
+        let cpu = Cpu::new();
+        assert_eq!(cpu.disasm(&mut mmu, 3), "f000: PLP\nf001: LDX $ef2a,Y\nf004: NIL");
+    }
+}
+
+/// Instruction Set Architecture as (Opcode, Description, Length, Timing)
+static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
+    // 00-07
+    ("{pc} BRK",           "Force Break",                                             1, 7),
+    ("{pc} ORA (${i},X)",  "OR Memory with Accumulator: (ind,X)",                     2, 6),
+    ("{pc} NIL",           "Unsupported 02",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 03",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 04",                                          1, 0),
+    ("{pc} ORA ${i}",      "OR Memory with Accumulator: zeropage",                    2, 3),
+    ("{pc} ASL ${i}",      "Shift Left One Bit: zeropage",                            2, 5),
+    ("{pc} NIL",           "Unsupported 07",                                          1, 0),
+
+    // 08-0F
+    ("{pc} PHP",           "Push Processor Status on Stack",                          1, 3),
+    ("{pc} ORA #{i}",      "OR Memory with Accumulator: immidiate",                   2, 2),
+    ("{pc} ASL A",         "Shift Left One Bit (Memory or Accumulator): accumulator", 1, 2),
+    ("{pc} NIL",           "Unsupported 0B",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 0C",                                          1, 0),
+    ("{pc} ORA ${i}{j}",   "OR Memory with Accumulator: absolute",                    3, 4),
+    ("{pc} ASL ${i}{j}",   "Shift Left One Bit: absolute",                            3, 6),
+    ("{pc} NIL",           "Unsupported 0F",                                          1, 0),
+
+    // 10-17
+    ("{pc} BPL",           "Branch on Result Plus",                                   2, 2),
+    ("{pc} ORA (${i}),Y",  "OR Memory with Accumulator: (ind),Y",                     2, 5),
+    ("{pc} NIL",           "Unsupported 12",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 13",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 14",                                          1, 0),
+    ("{pc} ORA ${i}",      "OR Memory with Accumulator: zeropage",                    2, 3),
+    ("{pc} ASL ${i}",      "Shift Left One Bit: zeropage",                            2, 6),
+    ("{pc} NIL",           "Unsupported 17",                                          1, 0),
+
+    // 18-1F
+    ("{pc} CLC",           "Clear Carry Flag",                                        1, 2),
+    ("{pc} ORA ${i}{j},Y", "OR Memory with Accumulator: absolute,Y",                  3, 4),
+    ("{pc} NIL",           "Unsupported 1A",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 1B",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 1C",                                          1, 0),
+    ("{pc} ORA ${i}{j},X", "OR Memory with Accumulator: absolute,X",                  3, 4),
+    ("{pc} ASL ${i}{j},X", "Shift Left One Bit: absolute,X",                          3, 7),
+    ("{pc} NIL",           "Unsupported 1F",                                          1, 0),
+
+    // 20-27
+    ("{pc} JSR ${i}{j}",   "Jump to New Location Saving Return Address",              3, 6),
+    ("{pc} AND (${i},X)",  "AND Memory with Accumulator: (ind,X)",                    2, 6),
+    ("{pc} NIL",           "Unsupported 22",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 23",                                          1, 0),
+    ("{pc} BIT ${i}",      "Test Bits in Memory with Accumulator: zeropage",          2, 3),
+    ("{pc} AND ${i}",      "AND Memory with Accumulator: zeropage",                   2, 3),
+    ("{pc} ROL ${i}",      "Rotate One Bit Left: zeropage",                           2, 5),
+    ("{pc} NIL",           "Unsupported 27",                                          1, 0),
+
+    // 28-2F
+    ("{pc} PLP",           "Pull Processor Status from Stack",                        1, 4),
+    ("{pc} AND #{i}",      "AND Memory with Accumulator: immidiate",                  2, 2),
+    ("{pc} ROL A",         "Rotate One Bit Left: accumulator",                        1, 2),
+    ("{pc} NIL",           "Unsupported 2B",                                          1, 0),
+    ("{pc} BIT ${i}{j}",   "Test Bits in Memory with Accumulator: absolute",          3, 4),
+    ("{pc} AND ${i}{j}",   "AND Memory with Accumulator: zeropage",                   3, 4),
+    ("{pc} ROL ${i}{j}",   "Rotate One Bit Left: zeropage",                           3, 6),
+    ("{pc} NIL",           "Unsupported 2F",                                          1, 0),
+
+    // 30-37
+    ("{pc} BMI #{i}",      "Branch on Result Minus",                                  2, 2),
+    ("{pc} AND (${i}),Y",  "AND Memory with Accumlator: (ind),Y",                     2, 5),
+    ("{pc} NIL",           "Unsupported 32",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 33",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 34",                                          1, 0),
+    ("{pc} AND #{i},X",    "AND Memory with Accumulator: zeropage,X",                 2, 4),
+    ("{pc} ROL ${i},X",    "Rotate One Bit Left: zeropage,X",                         2, 6),
+    ("{pc} NIL",           "Unsupported 37",                                          1, 0),
+
+    // 38-3F
+    ("{pc} SEC",           "Set Carry Flag",                                          1, 2),
+    ("{pc} AND ${i}{j},Y", "AND Memory with Accumulator: absolute,Y",                 3, 4),
+    ("{pc} NIL",           "Unsupported 3A",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 3B",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 3C",                                          1, 0),
+    ("{pc} AND ${i}{j},X", "AND Memory with Accumulator: absolute,X",                 2, 4),
+    ("{pc} ROL ${i}{j},X", "Rotate One Bit Left: absolute,X",                         2, 6),
+    ("{pc} NIL",           "Unsupported 3F",                                          1, 0),
+
+    // 40-47
+    ("{pc} RTI",           "Return from Interrupt",                                   1, 6),
+    ("{pc} EOR (${i},X)",  "Exclusive-OR Memory with Accumulator: (ind),X",           2, 6),
+    ("{pc} NIL",           "Unsupported 42",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 43",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 44",                                          1, 0),
+    ("{pc} EOR ${i}",      "Exclusive-OR Memory with Accumulator: zeropage",          2, 3),
+    ("{pc} LSR ${i}",      "Shift One Bit Right: zeropage",                           2, 5),
+    ("{pc} NIL",           "Unsupported 47",                                          1, 0),
+
+    // 48-4F
+    ("{pc} PHA",           "Push Accumulator on Stack",                               1, 3),
+    ("{pc} EOR #{i}",      "Exclusive-OR Memory with Accumulator: immidiate",         2, 2),
+    ("{pc} LSR A",         "Shift One Bit Right: accumulator",                        1, 2),
+    ("{pc} NIL",           "Unsupported 4B",                                          1, 0),
+    ("{pc} JMP ${i}{j}",   "Jump to New Location: absolute",                          3, 3),
+    ("{pc} EOR ${i}{j}",   "Exclusive-OR Memory with Accumulator: absolute",          3, 4),
+    ("{pc} LSR ${i}{j}",   "Shift One Bit Right: absolute",                           3, 6),
+    ("{pc} NIL",           "Unsupported 4F",                                          1, 0),
+
+    // 50-57
+    ("{pc} BVC",           "Branch on Overflow Clear",                                2, 2),
+    ("{pc} EOR (${i}),Y",  "Exclusive-OR Memory with Accumulator: (ind),Y",           2, 5),
+    ("{pc} NIL",           "Unsupported 52",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 53",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 54",                                          1, 0),
+    ("{pc} EOR ${i},X",    "Exclusive-OR Memory with Accumulator: zeropage,X",        2, 4),
+    ("{pc} LSR ${i},X",    "Shift One Bit Right: zeropage,X",                         2, 6),
+    ("{pc} NIL",           "Unsupported 57",                                          1, 0),
+
+    // 58-5F
+    ("{pc} CLI",           "Clear Interrupt Disable Bit",                             1, 2),
+    ("{pc} EOR ${i}{j},Y", "Exclusive-OR Memory with Accumulator: absolute,Y",        3, 4),
+    ("{pc} NIL",           "Unsupported 5A",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 5B",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 5C",                                          1, 0),
+    ("{pc} EOR ${i}{j},X", "Exclusive-OR Memory with Accumulator: absolute,X",        3, 4),
+    ("{pc} LSR ${i}{j},X", "Shift One Bit Right: absolute,X",                         3, 7),
+    ("{pc} NIL",           "Unsupported 5F",                                          1, 0),
+
+    // 60-67
+    ("{pc} RTS",           "Return from Subroutine",                                  1, 6),
+    ("{pc} ADC (${i},X)",  "Add Memory to Accumulator with Carry: (ind,X)",           2, 6),
+    ("{pc} NIL",           "Unsupported 62",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 63",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 64",                                          1, 0),
+    ("{pc} ADC ${i}",      "Add Memory to Accumulator with Carry: zeropage",          2, 3),
+    ("{pc} ROR ${i}",      "Rotate One Bit Right",                                    2, 5),
+    ("{pc} NIL",           "Unsupported 67",                                          1, 0),
+
+    // 68-6F
+    ("{pc} PLA",           "Pull Accumulator from Stack",                             1, 4),
+    ("{pc} ADC #{i}",      "Add Memory to Accumulator with Carry: immediate",         2, 6),
+    ("{pc} ROR A",         "Rotate One Bit Right: accumulator",                       1, 2),
+    ("{pc} NIL",           "Unsupported 6B",                                          1, 0),
+    ("{pc} JMP ${i}",      "Jump to New Location: indirect",                          3, 5),
+    ("{pc} ADC ${i}{j}",   "Add Memory to Accumulator: absolute",                     3, 4),
+    ("{pc} ROR ${i}{j}",   "Rotate One Bit Right: absolute",                          3, 6),
+    ("{pc} NIL",           "Unsupported 6F",                                          1, 0),
+
+    // 70-77
+    ("{pc} BVS",           "Branch on Overflow Set",                                  2, 2),
+    ("{pc} ADC (${i}),Y",  "Add Memory to Accumulator With Carry: (ind),Y",           2, 5),
+    ("{pc} NIL",           "Unsupported 72",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 73",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 74",                                          1, 0),
+    ("{pc} ADC ${i},X",    "Add Memory to Accumulator With Carry: zeropage,X",        2, 4),
+    ("{pc} ROR ${i},X",    "Rotate One Bit Right: zeropage,X",                        2, 6),
+    ("NIL",           "Unsupported 77",                                          1, 0),
+
+    // 78-7F
+    ("{pc} SEI",           "Set Interrupt Disable Status",                            1, 2),
+    ("{pc} ADC ${i}{j},Y", "Add Memory to Accumulator With Carry: absolute,Y",        3, 4),
+    ("{pc} NIL",           "Unsupported 7A",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 7B",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 7C",                                          1, 0),
+    ("{pc} ADC ${i}{j},X", "Add Memory to Accumulator With Carry: absolute,X",        3, 4),
+    ("{pc} ROR ${i}{j},X", "Rotate One Bit Right: absolute,X",                        3, 7),
+    ("{pc} NIL",           "Unsupported 7F",                                          1, 0),
+
+    // 80-87
+    ("{pc} NIL",           "Unsupported 80",                                          1, 0),
+    ("{pc} STA (${i},X)",  "Store Accumulator in Memory: zeropage,X",                 2, 6),
+    ("{pc} NIL",           "Unsupported 82",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 83",                                          1, 0),
+    ("{pc} STY ${i}",      "Store Index Y in Memory: zeropage",                       2, 3),
+    ("{pc} STA ${i}",      "Store Accumulator in Memory: zeropage",                   2, 3),
+    ("{pc} STX $i{:02x}",  "Store Index X in Memory: zeropage",                       2, 3),
+    ("{pc} NIL",           "Unsupported 87",                                          1, 0),
+
+    // 88-8F
+    ("{pc} DEY",           "Decrement Index Y by One",                                1, 2),
+    ("{pc} NIL",           "Unsupported 89",                                          1, 0),
+    ("{pc} TXA",           "Transfer Index X to Accumulator",                         1, 2),
+    ("{pc} NIL",           "Unsupported 8B",                                          1, 0),
+    ("{pc} STY ${i}{j}",   "Store Index Y in Memory: absolute",                       3, 4),
+    ("{pc} STA ${i}{j}",   "Store Accumulator in Memory: absolute",                   3, 4),
+    ("{pc} STX ${i}{j}",   "Store Index X in Memory: absolute",                       3, 4),
+    ("{pc} NIL",           "Unsupported 8F",                                          1, 0),
+
+    // 90-97
+    ("{pc} BCC ${i}",      "Branch on Carry Clear",                                   2, 2),
+    ("{pc} STA (${i}),Y",  "Store Accumulator in Memory",                             2, 6),
+    ("{pc} NIL",           "Unsupported 92",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 93",                                          1, 0),
+    ("{pc} STY ${i},X",    "Store Index Y in Memory: zeropage,X",                     2, 4),
+    ("{pc} STA ${i},X",    "Store Accumulator in Memory: zeropage,X",                 2, 4),
+    ("{pc} STX ${i},Y",    "Store Index Y in Memory: zeropage,Y",                     2, 4),
+    ("{pc} NIL",           "Unsupported 93",                                          1, 0),
+
+    // 98-9F
+    ("{pc} TYA",           "Transfer Index Y to Accumulator",                         1, 2),
+    ("{pc} STA ${i}{j},Y", "Store Accumulator in Memory: absolute,Y",                 3, 5),
+    ("{pc} TXS",           "Transfer Index X to Stack Register",                      1, 2),
+    ("{pc} NIL",           "Unsupported 9B",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 9C",                                          1, 0),
+    ("{pc} STA ${i}{j},X", "Store Accumulator in Memory: absolute,X",                 3, 5),
+    ("{pc} NIL",           "Unsupported 9E",                                          1, 0),
+    ("{pc} NIL",           "Unsupported 9F",                                          1, 0),
+
+    // A0-A7
+    ("{pc} LDY #{i}",      "Load Index Y with Memory: immediate",                     2, 2),
+    ("{pc} LDA (${i},X)",  "Load Accumulator with Memory: (ind,X)",                   2, 6),
+    ("{pc} LDX #{i}",      "Load Index X with Memory: immediate",                     2, 2),
+    ("{pc} NIL",           "Unsupported A3",                                          1, 0),
+    ("{pc} LDY ${i}",      "Load Index Y with Memory: zeropage",                      2, 3),
+    ("{pc} LDA ${i}",      "Load Accumulator with Memory: zeropage",                  2, 3),
+    ("{pc} LDX ${i}",      "Load Index X with Memory: zeropage",                      2, 3),
+    ("{pc} NIL",           "Unsupported A7",                                          1, 0),
+
+    // A8-AF
+    ("{pc} TAY",           "Transfer Accumulator to Index Y",                         1, 2),
+    ("{pc} LDA #{i}",      "Load Accumulator with Memory: immediate",                 2, 2),
+    ("{pc} TAX",           "Transfer Accumulator to Index X",                         1, 2),
+    ("{pc} NIL",           "Unsupported AB",                                          1, 0),
+    ("{pc} LDY ${i}{j}",   "Load Index Y with Memory: absolute",                      3, 4),
+    ("{pc} LDA ${i}{j}",   "Load Accumulator with Memory: absolute",                  3, 4),
+    ("{pc} LDX ${i}{j}",   "Load Index X with Memory: absolute",                      3, 4),
+    ("{pc} NIL",           "Unsupported AF",                                          1, 0),
+
+    // B0-B7
+    ("{pc} BCS ${i}",      "Branch on Carry Set",                                     2, 2),
+    ("{pc} LDA (${i}),Y",  "Load Accumulator with Memory: (ind),Y",                   2, 5),
+    ("{pc} NIL",           "Unsupported B2",                                          1, 0),
+    ("{pc} NIL",           "Unsupported B3",                                          1, 0),
+    ("{pc} LDY ${i},X",    "Load Index Y with Memory: zeropage,X",                    2, 4),
+    ("{pc} LDA ${i},X",    "Load Accumulator with Memory: zeropage,X",                2, 4),
+    ("{pc} LDX ${i},Y",    "Load Index X with Memory: zeropage,Y",                    2, 4),
+    ("{pc} NIL",           "Unsupported B7",                                          1, 0),
+
+    // B8-BF
+    ("{pc} CLV",           "Clear Overflow Flag",                                     1, 2),
+    ("{pc} LDA ${i}{j},Y", "Load Accumulator with Memory: absolute,Y",                3, 4),
+    ("{pc} TSX",           "Transfer Stack Pointer to Index X",                       1, 2),
+    ("{pc} NIL",           "Unsupported BB",                                          1, 0),
+    ("{pc} LDY ${i}{j},X", "Load Index Y with Memory: absolute,X",                    3, 4),
+    ("{pc} LDA ${i}{j},X", "Load Accumulator with Memory: absolute,X",                3, 4),
+    ("{pc} LDX ${i}{j},Y", "Load Index X with Memory: absolute,Y",                    3, 4),
+    ("{pc} NIL",           "Unsupported BF",                                          1, 0),
+
+    // C0-C7
+    ("{pc} CPY #{i}",      "Compare Memory and Index Y: immediate",                   2, 2),
+    ("{pc} CMP (${i},X)",  "Compare Memory with Accumulator: (ind,X)",                2, 6),
+    ("{pc} NIL",           "Unsupported C2",                                          1, 0),
+    ("{pc} NIL",           "Unsupported C3",                                          1, 0),
+    ("{pc} CPY ${i}",      "Compare Memory and Index Y: zeropage",                    2, 3),
+    ("{pc} CMP ${i}",      "Compare Memory with Accumulator: zeropage",               2, 3),
+    ("{pc} DEC ${i}",      "Decrement Memory by One: zeropage",                       2, 5),
+    ("{pc} NIL",           "Unsupported C7",                                          1, 0),
+
+    // C8-CF
+    ("{pc} INY",           "Increment Index Y by One",                                1, 2),
+    ("{pc} CMP #{i}",      "Compare Memory with Accumulator: immediate",              2, 2),
+    ("{pc} DEX",           "Decrement Index X by One",                                1, 2),
+    ("{pc} NIL",           "Unsupported CB",                                          1, 0),
+    ("{pc} CPY ${i}{j}",   "Compare Memory and Index Y: absolute",                    3, 4),
+    ("{pc} CMP ${i}{j}",   "Compare Memory with Accumulator: absolute",               3, 4),
+    ("{pc} DEC ${i}{j}",   "Decrement Memory by One: absolute",                       3, 3),
+    ("{pc} NIL",                   "Unsupported CF",                                          1, 0),
+
+    // D0-D7
+    ("{pc} BNE",           "Branch on Result not Zero",                               2, 2),
+    ("{pc} CMP (${i}),Y",  "Compare Memory with Accumulator: (ind),Y",                2, 5),
+    ("{pc} NIL",           "Unsupported D2",                                          1, 0),
+    ("{pc} NIL",           "Unsupported D3",                                          1, 0),
+    ("{pc} NIL",           "Unsupported D4",                                          1, 0),
+    ("{pc} CMP ${i},X",    "Compare Memory with Accumulator: zeropage,X",             2, 4),
+    ("{pc} DEC ${i},X",    "Decrement Memory by One: zeropage,X",                     2, 6),
+    ("{pc} NIL",           "Unsupported D7",                                          1, 0),
+
+    // D8-DF
+    ("{pc} CLD",           "Clear Decimal Mode",                                      1, 2),
+    ("{pc} CMP ${i}{i},Y", "Compare Memory with Accumulator: absolute,Y",             3, 4),
+    ("{pc} NIL",           "Unsupported DA",                                          1, 0),
+    ("{pc} NIL",           "Unsupported DB",                                          1, 0),
+    ("{pc} NIL",           "Unsupported DC",                                          1, 0),
+    ("{pc} CMP ${i}{j},X", "Compare Memory with Accumulator: absolute,X",             3, 4),
+    ("{pc} DEC ${i}{j},X", "Decrement Memory by One: absolute,X",                     3, 7),
+    ("NIL",           "Unsupported DC",                                          1, 0),
+
+    // E0-E7
+    ("{pc} CPX #{i}",      "Compare Memory and Index X: immediate",                   2, 2),
+    ("{pc} SBC (${i},X)",  "Subtract Memory from Accumulator with Borrow: (ind,X)",   2, 6),
+    ("{pc} NIL",           "Unsupported E2",                                          1, 0),
+    ("{pc} NIL",           "Unsupported E3",                                          1, 0),
+    ("{pc} CPX ${i}",      "Compare Memory and Index X: zeropage",                    2, 3),
+    ("{pc} SBC ${i}",      "Subtract Memory from Accumulator with Borrow: zeropage",  2, 3),
+    ("{pc} INC ${i}",      "Increment Memory by One: zeropage",                       2, 5),
+    ("{pc} NIL",           "Unsupported E7",                                          1, 0),
+
+    // E8-EF
+    ("{pc} INX",           "Increment Index X by One",                                1, 2),
+    ("{pc} SBC #{i}",      "Subtract Memory from Accumulator with Borrow: immediate", 2, 2),
+    ("{pc} NOP",           "No Operation",                                            1, 2),
+    ("{pc} NIL",           "Unsupported EB",                                          1, 0),
+    ("{pc} CPX ${i}{j}",   "Compare Memory and Index X: absolute",                    3, 4),
+    ("{pc} SBC ${i}{j}",   "Subtract Memory from Accumulator with Borrow: absolute",  3, 4),
+    ("{pc} INC ${i}{j}",   "Increment Memory by One: absolute",                       3, 6),
+    ("{pc} NIL",           "Unsupported EF",                                          1, 0),
+
+    // F0-F7
+    ("{pc} BEQ",           "Branch on Result Zero",                                   2, 2),
+    ("{pc} SBC (${i}),Y",  "Subtract Memory from Accumulator with Borrow: (ind),Y",   2, 5),
+    ("{pc} NIL",           "Unsupported F2",                                          1, 0),
+    ("{pc} NIL",           "Unsupported F3",                                          1, 0),
+    ("{pc} NIL",           "Unsupported F4",                                          1, 0),
+    ("{pc} SBC ${i},X",    "Subtract Memory from Accumulator with Borrow: zeropage,X",  2, 4),
+    ("{pc} INC ${i},X",    "Increment Memory by One: zeropage,X",                     2, 6),
+    ("{pc} NIL",           "Unsupported F7",                                          1, 0),
+
+    // F8-FF
+    ("{pc} SED",           "Set Decimal Flag",                                        1, 2),
+    ("{pc} SBC ${i}{j},Y", "Subtract Memory from Accumulator with Borrow: absolute,Y",3, 4),
+    ("{pc} NIL",           "Unsupported FA",                                          1, 0),
+    ("{pc} NIL",           "Unsupported FB",                                          1, 0),
+    ("{pc} NIL",           "Unsupported FC",                                          1, 0),
+    ("{pc} SBC ${i}{j},X", "Subtract Memory from Accumulator with Borrow: absolute,X",3, 4),
+    ("{pc} INC ${i}{j},X", "Increment Memory by One: absolute,X",                     3, 6),
+    ("{pc} NIL",           "Unsupported EF",                                          1, 0)
+];
+
+#[test]
+fn isa_correct_size() {
+    assert_eq!(ISA.len(), 256);
 }
