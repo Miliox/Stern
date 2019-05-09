@@ -18,7 +18,7 @@ pub struct Debugger {
 impl Debugger {
     pub fn new() -> Debugger {
         Debugger {
-            font: Font::from_file("res/arizone-unicase.ttf").unwrap(),
+            font: Font::from_file("res/DejaVuSansMono.ttf").unwrap(),
             window: RenderWindow::new((1200, 960), "Debugger", Style::CLOSE, &Default::default())
         }
     }
@@ -30,7 +30,7 @@ impl Debugger {
                 _ => {}
             }
         }
-        let mut text = Text::new(&format!("{:?}\n{}", cpu, cpu.disasm(&mmu, 35)), &self.font, 18);
+        let mut text = Text::new(&format!("{:?}\n{}", cpu, cpu.disasm(&mmu, 35)), &self.font, 20);
         text.set_fill_color(&Color::BLACK);
 
         self.window.clear(&Color::WHITE);
