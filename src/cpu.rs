@@ -3023,7 +3023,7 @@ mod tests {
         mmu.load_room(&room);
 
         let cpu = Cpu::new();
-        assert_eq!(cpu.disasm(&mut mmu, 3), "f000: PLP\nf001: LDX $ef2a,Y\nf004: NIL");
+        assert_eq!(cpu.disasm(&mut mmu, 3), "f000: PLP\nf001: LDX $2aef,Y\nf004: NIL");
     }
 }
 
@@ -3045,8 +3045,8 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} ASL A",         "Shift Left One Bit (Memory or Accumulator): accumulator", 1, 2),
     ("{pc} NIL",           "Unsupported 0B",                                          1, 0),
     ("{pc} NIL",           "Unsupported 0C",                                          1, 0),
-    ("{pc} ORA ${i}{j}",   "OR Memory with Accumulator: absolute",                    3, 4),
-    ("{pc} ASL ${i}{j}",   "Shift Left One Bit: absolute",                            3, 6),
+    ("{pc} ORA ${j}{i}",   "OR Memory with Accumulator: absolute",                    3, 4),
+    ("{pc} ASL ${j}{i}",   "Shift Left One Bit: absolute",                            3, 6),
     ("{pc} NIL",           "Unsupported 0F",                                          1, 0),
 
     // 10-17
@@ -3061,16 +3061,16 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // 18-1F
     ("{pc} CLC",           "Clear Carry Flag",                                        1, 2),
-    ("{pc} ORA ${i}{j},Y", "OR Memory with Accumulator: absolute,Y",                  3, 4),
+    ("{pc} ORA ${j}{i},Y", "OR Memory with Accumulator: absolute,Y",                  3, 4),
     ("{pc} NIL",           "Unsupported 1A",                                          1, 0),
     ("{pc} NIL",           "Unsupported 1B",                                          1, 0),
     ("{pc} NIL",           "Unsupported 1C",                                          1, 0),
-    ("{pc} ORA ${i}{j},X", "OR Memory with Accumulator: absolute,X",                  3, 4),
-    ("{pc} ASL ${i}{j},X", "Shift Left One Bit: absolute,X",                          3, 7),
+    ("{pc} ORA ${j}{i},X", "OR Memory with Accumulator: absolute,X",                  3, 4),
+    ("{pc} ASL ${j}{i},X", "Shift Left One Bit: absolute,X",                          3, 7),
     ("{pc} NIL",           "Unsupported 1F",                                          1, 0),
 
     // 20-27
-    ("{pc} JSR ${i}{j}",   "Jump to New Location Saving Return Address",              3, 6),
+    ("{pc} JSR ${j}{i}",   "Jump to New Location Saving Return Address",              3, 6),
     ("{pc} AND (${i},X)",  "AND Memory with Accumulator: (ind,X)",                    2, 6),
     ("{pc} NIL",           "Unsupported 22",                                          1, 0),
     ("{pc} NIL",           "Unsupported 23",                                          1, 0),
@@ -3084,9 +3084,9 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} AND #{i}",      "AND Memory with Accumulator: immidiate",                  2, 2),
     ("{pc} ROL A",         "Rotate One Bit Left: accumulator",                        1, 2),
     ("{pc} NIL",           "Unsupported 2B",                                          1, 0),
-    ("{pc} BIT ${i}{j}",   "Test Bits in Memory with Accumulator: absolute",          3, 4),
-    ("{pc} AND ${i}{j}",   "AND Memory with Accumulator: zeropage",                   3, 4),
-    ("{pc} ROL ${i}{j}",   "Rotate One Bit Left: zeropage",                           3, 6),
+    ("{pc} BIT ${j}{i}",   "Test Bits in Memory with Accumulator: absolute",          3, 4),
+    ("{pc} AND ${j}{i}",   "AND Memory with Accumulator: zeropage",                   3, 4),
+    ("{pc} ROL ${j}{i}",   "Rotate One Bit Left: zeropage",                           3, 6),
     ("{pc} NIL",           "Unsupported 2F",                                          1, 0),
 
     // 30-37
@@ -3101,12 +3101,12 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // 38-3F
     ("{pc} SEC",           "Set Carry Flag",                                          1, 2),
-    ("{pc} AND ${i}{j},Y", "AND Memory with Accumulator: absolute,Y",                 3, 4),
+    ("{pc} AND ${j}{i},Y", "AND Memory with Accumulator: absolute,Y",                 3, 4),
     ("{pc} NIL",           "Unsupported 3A",                                          1, 0),
     ("{pc} NIL",           "Unsupported 3B",                                          1, 0),
     ("{pc} NIL",           "Unsupported 3C",                                          1, 0),
-    ("{pc} AND ${i}{j},X", "AND Memory with Accumulator: absolute,X",                 2, 4),
-    ("{pc} ROL ${i}{j},X", "Rotate One Bit Left: absolute,X",                         2, 6),
+    ("{pc} AND ${j}{i},X", "AND Memory with Accumulator: absolute,X",                 2, 4),
+    ("{pc} ROL ${j}{i},X", "Rotate One Bit Left: absolute,X",                         2, 6),
     ("{pc} NIL",           "Unsupported 3F",                                          1, 0),
 
     // 40-47
@@ -3124,9 +3124,9 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} EOR #{i}",      "Exclusive-OR Memory with Accumulator: immidiate",         2, 2),
     ("{pc} LSR A",         "Shift One Bit Right: accumulator",                        1, 2),
     ("{pc} NIL",           "Unsupported 4B",                                          1, 0),
-    ("{pc} JMP ${i}{j}",   "Jump to New Location: absolute",                          3, 3),
-    ("{pc} EOR ${i}{j}",   "Exclusive-OR Memory with Accumulator: absolute",          3, 4),
-    ("{pc} LSR ${i}{j}",   "Shift One Bit Right: absolute",                           3, 6),
+    ("{pc} JMP ${j}{i}",   "Jump to New Location: absolute",                          3, 3),
+    ("{pc} EOR ${j}{i}",   "Exclusive-OR Memory with Accumulator: absolute",          3, 4),
+    ("{pc} LSR ${j}{i}",   "Shift One Bit Right: absolute",                           3, 6),
     ("{pc} NIL",           "Unsupported 4F",                                          1, 0),
 
     // 50-57
@@ -3141,12 +3141,12 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // 58-5F
     ("{pc} CLI",           "Clear Interrupt Disable Bit",                             1, 2),
-    ("{pc} EOR ${i}{j},Y", "Exclusive-OR Memory with Accumulator: absolute,Y",        3, 4),
+    ("{pc} EOR ${j}{i},Y", "Exclusive-OR Memory with Accumulator: absolute,Y",        3, 4),
     ("{pc} NIL",           "Unsupported 5A",                                          1, 0),
     ("{pc} NIL",           "Unsupported 5B",                                          1, 0),
     ("{pc} NIL",           "Unsupported 5C",                                          1, 0),
-    ("{pc} EOR ${i}{j},X", "Exclusive-OR Memory with Accumulator: absolute,X",        3, 4),
-    ("{pc} LSR ${i}{j},X", "Shift One Bit Right: absolute,X",                         3, 7),
+    ("{pc} EOR ${j}{i},X", "Exclusive-OR Memory with Accumulator: absolute,X",        3, 4),
+    ("{pc} LSR ${j}{i},X", "Shift One Bit Right: absolute,X",                         3, 7),
     ("{pc} NIL",           "Unsupported 5F",                                          1, 0),
 
     // 60-67
@@ -3165,8 +3165,8 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} ROR A",         "Rotate One Bit Right: accumulator",                       1, 2),
     ("{pc} NIL",           "Unsupported 6B",                                          1, 0),
     ("{pc} JMP ${i}",      "Jump to New Location: indirect",                          3, 5),
-    ("{pc} ADC ${i}{j}",   "Add Memory to Accumulator: absolute",                     3, 4),
-    ("{pc} ROR ${i}{j}",   "Rotate One Bit Right: absolute",                          3, 6),
+    ("{pc} ADC ${j}{i}",   "Add Memory to Accumulator: absolute",                     3, 4),
+    ("{pc} ROR ${j}{i}",   "Rotate One Bit Right: absolute",                          3, 6),
     ("{pc} NIL",           "Unsupported 6F",                                          1, 0),
 
     // 70-77
@@ -3181,12 +3181,12 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // 78-7F
     ("{pc} SEI",           "Set Interrupt Disable Status",                            1, 2),
-    ("{pc} ADC ${i}{j},Y", "Add Memory to Accumulator With Carry: absolute,Y",        3, 4),
+    ("{pc} ADC ${j}{i},Y", "Add Memory to Accumulator With Carry: absolute,Y",        3, 4),
     ("{pc} NIL",           "Unsupported 7A",                                          1, 0),
     ("{pc} NIL",           "Unsupported 7B",                                          1, 0),
     ("{pc} NIL",           "Unsupported 7C",                                          1, 0),
-    ("{pc} ADC ${i}{j},X", "Add Memory to Accumulator With Carry: absolute,X",        3, 4),
-    ("{pc} ROR ${i}{j},X", "Rotate One Bit Right: absolute,X",                        3, 7),
+    ("{pc} ADC ${j}{i},X", "Add Memory to Accumulator With Carry: absolute,X",        3, 4),
+    ("{pc} ROR ${j}{i},X", "Rotate One Bit Right: absolute,X",                        3, 7),
     ("{pc} NIL",           "Unsupported 7F",                                          1, 0),
 
     // 80-87
@@ -3204,9 +3204,9 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} NIL",           "Unsupported 89",                                          1, 0),
     ("{pc} TXA",           "Transfer Index X to Accumulator",                         1, 2),
     ("{pc} NIL",           "Unsupported 8B",                                          1, 0),
-    ("{pc} STY ${i}{j}",   "Store Index Y in Memory: absolute",                       3, 4),
-    ("{pc} STA ${i}{j}",   "Store Accumulator in Memory: absolute",                   3, 4),
-    ("{pc} STX ${i}{j}",   "Store Index X in Memory: absolute",                       3, 4),
+    ("{pc} STY ${j}{i}",   "Store Index Y in Memory: absolute",                       3, 4),
+    ("{pc} STA ${j}{i}",   "Store Accumulator in Memory: absolute",                   3, 4),
+    ("{pc} STX ${j}{i}",   "Store Index X in Memory: absolute",                       3, 4),
     ("{pc} NIL",           "Unsupported 8F",                                          1, 0),
 
     // 90-97
@@ -3221,11 +3221,11 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // 98-9F
     ("{pc} TYA",           "Transfer Index Y to Accumulator",                         1, 2),
-    ("{pc} STA ${i}{j},Y", "Store Accumulator in Memory: absolute,Y",                 3, 5),
+    ("{pc} STA ${j}{i},Y", "Store Accumulator in Memory: absolute,Y",                 3, 5),
     ("{pc} TXS",           "Transfer Index X to Stack Register",                      1, 2),
     ("{pc} NIL",           "Unsupported 9B",                                          1, 0),
     ("{pc} NIL",           "Unsupported 9C",                                          1, 0),
-    ("{pc} STA ${i}{j},X", "Store Accumulator in Memory: absolute,X",                 3, 5),
+    ("{pc} STA ${j}{i},X", "Store Accumulator in Memory: absolute,X",                 3, 5),
     ("{pc} NIL",           "Unsupported 9E",                                          1, 0),
     ("{pc} NIL",           "Unsupported 9F",                                          1, 0),
 
@@ -3244,9 +3244,9 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} LDA #{i}",      "Load Accumulator with Memory: immediate",                 2, 2),
     ("{pc} TAX",           "Transfer Accumulator to Index X",                         1, 2),
     ("{pc} NIL",           "Unsupported AB",                                          1, 0),
-    ("{pc} LDY ${i}{j}",   "Load Index Y with Memory: absolute",                      3, 4),
-    ("{pc} LDA ${i}{j}",   "Load Accumulator with Memory: absolute",                  3, 4),
-    ("{pc} LDX ${i}{j}",   "Load Index X with Memory: absolute",                      3, 4),
+    ("{pc} LDY ${j}{i}",   "Load Index Y with Memory: absolute",                      3, 4),
+    ("{pc} LDA ${j}{i}",   "Load Accumulator with Memory: absolute",                  3, 4),
+    ("{pc} LDX ${j}{i}",   "Load Index X with Memory: absolute",                      3, 4),
     ("{pc} NIL",           "Unsupported AF",                                          1, 0),
 
     // B0-B7
@@ -3261,12 +3261,12 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // B8-BF
     ("{pc} CLV",           "Clear Overflow Flag",                                     1, 2),
-    ("{pc} LDA ${i}{j},Y", "Load Accumulator with Memory: absolute,Y",                3, 4),
+    ("{pc} LDA ${j}{i},Y", "Load Accumulator with Memory: absolute,Y",                3, 4),
     ("{pc} TSX",           "Transfer Stack Pointer to Index X",                       1, 2),
     ("{pc} NIL",           "Unsupported BB",                                          1, 0),
-    ("{pc} LDY ${i}{j},X", "Load Index Y with Memory: absolute,X",                    3, 4),
-    ("{pc} LDA ${i}{j},X", "Load Accumulator with Memory: absolute,X",                3, 4),
-    ("{pc} LDX ${i}{j},Y", "Load Index X with Memory: absolute,Y",                    3, 4),
+    ("{pc} LDY ${j}{i},X", "Load Index Y with Memory: absolute,X",                    3, 4),
+    ("{pc} LDA ${j}{i},X", "Load Accumulator with Memory: absolute,X",                3, 4),
+    ("{pc} LDX ${j}{i},Y", "Load Index X with Memory: absolute,Y",                    3, 4),
     ("{pc} NIL",           "Unsupported BF",                                          1, 0),
 
     // C0-C7
@@ -3284,9 +3284,9 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} CMP #{i}",      "Compare Memory with Accumulator: immediate",              2, 2),
     ("{pc} DEX",           "Decrement Index X by One",                                1, 2),
     ("{pc} NIL",           "Unsupported CB",                                          1, 0),
-    ("{pc} CPY ${i}{j}",   "Compare Memory and Index Y: absolute",                    3, 4),
-    ("{pc} CMP ${i}{j}",   "Compare Memory with Accumulator: absolute",               3, 4),
-    ("{pc} DEC ${i}{j}",   "Decrement Memory by One: absolute",                       3, 3),
+    ("{pc} CPY ${j}{i}",   "Compare Memory and Index Y: absolute",                    3, 4),
+    ("{pc} CMP ${j}{i}",   "Compare Memory with Accumulator: absolute",               3, 4),
+    ("{pc} DEC ${j}{i}",   "Decrement Memory by One: absolute",                       3, 3),
     ("{pc} NIL",                   "Unsupported CF",                                          1, 0),
 
     // D0-D7
@@ -3301,12 +3301,12 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // D8-DF
     ("{pc} CLD",           "Clear Decimal Mode",                                      1, 2),
-    ("{pc} CMP ${i}{i},Y", "Compare Memory with Accumulator: absolute,Y",             3, 4),
+    ("{pc} CMP ${j}{i},Y", "Compare Memory with Accumulator: absolute,Y",             3, 4),
     ("{pc} NIL",           "Unsupported DA",                                          1, 0),
     ("{pc} NIL",           "Unsupported DB",                                          1, 0),
     ("{pc} NIL",           "Unsupported DC",                                          1, 0),
-    ("{pc} CMP ${i}{j},X", "Compare Memory with Accumulator: absolute,X",             3, 4),
-    ("{pc} DEC ${i}{j},X", "Decrement Memory by One: absolute,X",                     3, 7),
+    ("{pc} CMP ${j}{i},X", "Compare Memory with Accumulator: absolute,X",             3, 4),
+    ("{pc} DEC ${j}{i},X", "Decrement Memory by One: absolute,X",                     3, 7),
     ("NIL",           "Unsupported DC",                                          1, 0),
 
     // E0-E7
@@ -3324,9 +3324,9 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
     ("{pc} SBC #{i}",      "Subtract Memory from Accumulator with Borrow: immediate", 2, 2),
     ("{pc} NOP",           "No Operation",                                            1, 2),
     ("{pc} NIL",           "Unsupported EB",                                          1, 0),
-    ("{pc} CPX ${i}{j}",   "Compare Memory and Index X: absolute",                    3, 4),
-    ("{pc} SBC ${i}{j}",   "Subtract Memory from Accumulator with Borrow: absolute",  3, 4),
-    ("{pc} INC ${i}{j}",   "Increment Memory by One: absolute",                       3, 6),
+    ("{pc} CPX ${j}{i}",   "Compare Memory and Index X: absolute",                    3, 4),
+    ("{pc} SBC ${j}{i}",   "Subtract Memory from Accumulator with Borrow: absolute",  3, 4),
+    ("{pc} INC ${j}{i}",   "Increment Memory by One: absolute",                       3, 6),
     ("{pc} NIL",           "Unsupported EF",                                          1, 0),
 
     // F0-F7
@@ -3341,12 +3341,12 @@ static ISA: &'static [(&'static str, &'static str, i8, i8); 256] = &[
 
     // F8-FF
     ("{pc} SED",           "Set Decimal Flag",                                        1, 2),
-    ("{pc} SBC ${i}{j},Y", "Subtract Memory from Accumulator with Borrow: absolute,Y",3, 4),
+    ("{pc} SBC ${j}{i},Y", "Subtract Memory from Accumulator with Borrow: absolute,Y",3, 4),
     ("{pc} NIL",           "Unsupported FA",                                          1, 0),
     ("{pc} NIL",           "Unsupported FB",                                          1, 0),
     ("{pc} NIL",           "Unsupported FC",                                          1, 0),
-    ("{pc} SBC ${i}{j},X", "Subtract Memory from Accumulator with Borrow: absolute,X",3, 4),
-    ("{pc} INC ${i}{j},X", "Increment Memory by One: absolute,X",                     3, 6),
+    ("{pc} SBC ${j}{i},X", "Subtract Memory from Accumulator with Borrow: absolute,X",3, 4),
+    ("{pc} INC ${j}{i},X", "Increment Memory by One: absolute,X",                     3, 6),
     ("{pc} NIL",           "Unsupported EF",                                          1, 0)
 ];
 
