@@ -45,6 +45,15 @@ impl Emulator {
         let mut oversleep = ZERO_DURATION;
         let mut beg_frame = time::Instant::now();
         loop {
+            if self.debugger.step_mode {
+                self.debugger.refresh(&self.cpu, &self.mmu);
+                if self.debugger.step_once {
+                    self.cpu.step(&mut self.mmu);
+                    self.debugger.step_once = false;
+                }
+                continue;
+            }
+
             self.cpu.step(&mut self.mmu);
             // println!("{:?}", self.cpu);
 

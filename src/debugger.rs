@@ -13,12 +13,16 @@ use crate::mmu::Mmu;
 pub struct Debugger {
     font: Font,
     window: RenderWindow,
+    pub step_mode: bool,
+    pub step_once: bool,
 }
 
 impl Debugger {
     pub fn new() -> Debugger {
         Debugger {
             font: Font::from_file("res/DejaVuSansMono.ttf").unwrap(),
+            step_mode: false,
+            step_once: false,
             window: RenderWindow::new((1200, 960), "Debugger", Style::CLOSE, &Default::default())
         }
     }
@@ -26,7 +30,12 @@ impl Debugger {
     pub fn refresh(&mut self, cpu: &Cpu, mmu: &Mmu) {
         while let Some(event) = self.window.poll_event() {
             match event {
-                Event::Closed | Event::KeyPressed { code: Key::Escape, .. } => process::exit(0),
+                Event::Closed  => process::exit(0),
+                Event::KeyPressed { code: Key::Escape, .. } => self.step_mode = false,
+                Event::KeyPressed { code: Key::Return, .. } => {
+                    self.step_mode = true;
+                    self.step_once = true;
+                },
                 _ => {}
             }
         }
